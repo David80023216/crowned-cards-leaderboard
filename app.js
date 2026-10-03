@@ -297,10 +297,10 @@
       return "Hey! 👑 I'm " + HELPER_NAME + ". Ask me about pulls, rarity odds, streaks, the binder, or the prize — or tap a question below!";
     }
     if (has('odds', 'rarity', 'rarities', 'chance', 'chances', 'probability')) {
-      return ODDS_TABLE + '<br><br>Dust pulls are common-only ($5–25). Streak milestones mint <strong>boosted</strong> pulls with much better odds — ask me how streaks work!';
+      return ODDS_TABLE + '<br><br>Fan pulls are common-only ($5–25) — <strong>every comment</strong> on a hunt video mints one (max 1 per video per Central day). Streak milestones mint <strong>boosted</strong> pulls with much better odds — ask me how streaks work!';
     }
-    if (has('dust')) {
-      return "✨ A dust pull is the freebie: any other comment on a hunt video mints one <strong>common-only pull ($5–25)</strong>, once per Central day. Dust never counts toward the 3/day scoring-pull cap — just show up and you rip something!";
+    if (has('fan', 'fans', 'dust', 'free', 'freebie')) {
+      return "✨ A fan pull is the freebie: <strong>every comment</strong> on a hunt video mints one <strong>common-only pull ($5–25)</strong> — max 1 per video per Central day (comment on 3 videos = 3 fan pulls). Fan pulls never count toward the 3/day scoring-pull cap. Get a pick RIGHT on that video and your fan pull <strong>upgrades</strong> to a standard pull — just show up and rip!";
     }
     if (has('streak', 'streaks')) {
       return "🔥 Play consecutive days (any credited activity keeps the streak alive) and milestones mint <strong>boosted pulls — no commons</strong>, once per streak run:<br>" +
@@ -314,7 +314,7 @@
       return "🗂️ Your binder is your collection of digital Crown Hunt cards — <strong>tap any collector's row on the standings</strong> to open theirs: every pull with its art, name, rarity, value, and how it was earned. " + ODDS_TABLE;
     }
     if (has('pull')) {
-      return "🎲 A pull mints a digital Crown Hunt card into your binder with a whole-dollar value. Correct battle prediction or screenshot claim = <strong>standard pull</strong> (up to 3 scoring pulls per Central day). " + ODDS_TABLE;
+      return "🎲 A pull mints a digital Crown Hunt card into your binder with a whole-dollar value. Correct battle prediction or screenshot claim = <strong>standard pull</strong> (up to 3 scoring pulls per Central day). <strong>Every comment</strong> also mints a <strong>fan pull</strong> (common-only $5–25, max 1 per video per day) — and a correct pick upgrades that fan pull to a standard pull. " + ODDS_TABLE;
     }
     if (has('winning', 'lead', 'leading', 'ahead', 'top collector', 'first place')) {
       var top = helperTop(3);
@@ -330,7 +330,7 @@
       }).join('<br>');
     }
     if (has('play', 'join', 'start', 'how')) {
-      return "👑 Watch a Crown Hunt video, then comment your pick — name the card that takes the crown. Correct battle prediction or screenshot claim = a <strong>standard pull</strong> (up to 3 scoring pulls per Central day). Any other comment still mints a daily dust pull. Biggest binder value at month's end wins the Top Collector crown!";
+      return "👑 Watch a Crown Hunt video, then comment your pick — name the card that takes the crown. Correct battle prediction or screenshot claim = a <strong>standard pull</strong> (up to 3 scoring pulls per Central day). <strong>Every comment mints a fan pull</strong> (common-only, $5–25, max 1 per video per day) — nail the pick and it upgrades to a standard pull. Biggest binder value at month's end wins the Top Collector crown!";
     }
     if (has('prize', 'prizes', 'win', 'winner', 'reward', 'mailed', 'ship')) {
       var plist = (p.prizes || []).map(function (pr) {
