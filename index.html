@@ -71,6 +71,17 @@ letter-spacing:.08em;text-transform:uppercase;padding:.15rem .45rem;border-radiu
 .howto-box strong{display:block;color:var(--gold);margin-bottom:.15rem}
 #splash.hide{opacity:0;visibility:hidden;pointer-events:none}
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem}
+.dup-badge{position:absolute;top:.35rem;right:.35rem;z-index:2;font-size:.72rem;font-weight:800;
+padding:.15rem .5rem;border-radius:999px;background:#ffd34d;color:#141414;
+box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.card-tile.is-stack{cursor:pointer}
+.card-tile .pull-list{display:none;border-top:1px solid var(--line);padding:.35rem .55rem .55rem}
+.card-tile.open .pull-list{display:block}
+.card-tile.open{border-color:var(--gold-dim)}
+.pull-row{display:flex;justify-content:space-between;gap:.4rem;font-size:.72rem;
+color:var(--muted);padding:.18rem 0;border-bottom:1px dotted #2b2b33}
+.pull-row:last-child{border-bottom:0}
+.card-tile.open .card-date{color:var(--gold)}
 </style></head>
 <body>
 <div id="splash" style="position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;background:#0a0a0c;transition:opacity .35s ease">
@@ -119,14 +130,29 @@ const ART = {"common-1": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wB
 const CARDS = {"common-1": {"file": "common-1.png", "id": "common-1", "name": "Jax Moreno", "rarity": "common", "sport": "basketball"}, "common-2": {"file": "common-2.png", "id": "common-2", "name": "Cole Drummond", "rarity": "common", "sport": "baseball"}, "common-3": {"file": "common-3.png", "id": "common-3", "name": "Theo Marsh", "rarity": "common", "sport": "football"}, "rare-1": {"file": "rare-1.png", "id": "rare-1", "name": "Dane Calloway", "rarity": "rare", "sport": "football"}, "rare-2": {"file": "rare-2.png", "id": "rare-2", "name": "Milo Grant", "rarity": "rare", "sport": "basketball"}, "rare-3": {"file": "rare-3.png", "id": "rare-3", "name": "Brock Halden", "rarity": "rare", "sport": "hockey"}, "epic-1": {"file": "epic-1.png", "id": "epic-1", "name": "Finn Lockhart", "rarity": "epic", "sport": "hockey"}, "epic-2": {"file": "epic-2.png", "id": "epic-2", "name": "Reyes Dalton", "rarity": "epic", "sport": "baseball"}, "epic-3": {"file": "epic-3.png", "id": "epic-3", "name": "Dre Coleman", "rarity": "epic", "sport": "football"}, "legendary-1": {"file": "legendary-1.png", "id": "legendary-1", "name": "Zane Cross", "rarity": "legendary", "sport": "basketball"}, "legendary-2": {"file": "legendary-2.png", "id": "legendary-2", "name": "Hank Vargas", "rarity": "legendary", "sport": "baseball"}, "legendary-3": {"file": "legendary-3.png", "id": "legendary-3", "name": "Sven Kaldor", "rarity": "legendary", "sport": "hockey"}, "mythic-1": {"file": "mythic-1.png", "id": "mythic-1", "name": "Jet Okafor", "rarity": "mythic", "sport": "football"}, "mythic-2": {"file": "mythic-2.png", "id": "mythic-2", "name": "Rico Vance", "rarity": "mythic", "sport": "basketball"}, "mythic-3": {"file": "mythic-3.png", "id": "mythic-3", "name": "Tommy Blaze", "rarity": "mythic", "sport": "baseball"}};
 const money = v => v >= 100 ? "$" + Math.round(v).toLocaleString("en-US") : "$" + v.toFixed(2);
 
-function cardTile(pull) {
-  const c = CARDS[pull.card];
-  return `<div class="card-tile r-${pull.rarity}">
-    <div class="card-art-wrap"><img class="card-art" loading="lazy" src="${ART[pull.card]}" alt="${c.name}">
-    <span class="rarity-badge">${pull.rarity}</span></div>
+const RARITY_RANK = {mythic:0, legendary:1, epic:2, rare:3, common:4};
+
+function stackPulls(pulls) {
+  const map = {};
+  pulls.forEach(x => { (map[x.card] = map[x.card] || []).push(x); });
+  return Object.keys(map).map(cid => {
+    const list = map[cid].slice().sort((a,b) => b.value - a.value);
+    return {card: cid, rarity: list[0].rarity, pulls: list, count: list.length,
+            total: list.reduce((s,x) => s + x.value, 0)};
+  }).sort((a,b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity] || b.total - a.total);
+}
+
+function stackTile(stack) {
+  const c = CARDS[stack.card];
+  const multi = stack.count > 1;
+  const rows = stack.pulls.map(x =>
+    `<div class="pull-row"><span>${x.date}</span><span class="card-value">${money(x.value)}</span><span>${x.source}</span></div>`).join("");
+  return `<div class="card-tile r-${stack.rarity}${multi?' is-stack':''}"${multi?' data-expand="1"':''}>
+    <div class="card-art-wrap"><img class="card-art" loading="lazy" src="${ART[stack.card]}" alt="${c.name}">
+    <span class="rarity-badge">${stack.rarity}</span>${multi?`<span class="dup-badge">×${stack.count}</span>`:''}</div>
     <div class="card-name">${c.name}</div>
-    <div class="card-meta">${c.sport} · <span class="card-value">${money(pull.value)}</span></div>
-    <div class="card-date">${pull.date} · ${pull.source}</div></div>`;
+    <div class="card-meta">${c.sport} · <span class="card-value">${money(stack.total)}</span></div>
+    <div class="card-date">${multi? (stack.count+' pulls · tap to expand') : (stack.pulls[0].date+' · '+stack.pulls[0].source)}</div>${multi?`<div class="pull-list">${rows}</div>`:''}</div>`;
 }
 
 function renderStandings() {
@@ -155,15 +181,18 @@ function toggleBinder(row) {
   p.pulls.forEach(x => byRar[x.rarity] = (byRar[x.rarity]||0)+1);
   const counts = ["mythic","legendary","epic","rare","common"].filter(r=>byRar[r])
     .map(r => byRar[r]+" "+r).join(" · ");
+  const stacks = stackPulls(p.pulls);
   const tr = document.createElement("tr");
   tr.className = "binder-row";
   tr.innerHTML = `<td colspan="5"><div class="binder-panel">
     <div class="binder-head"><span class="binder-title">📁 ${p.handle}'s binder</span>
-    <span class="binder-total">${p.pulls.length} cards · ${money(p.value)}</span></div>
-    <div class="binder-grid">${p.pulls.map(cardTile).join("")}</div>
+    <span class="binder-total">${p.pulls.length} pulls · ${stacks.length} unique · ${money(p.value)}</span></div>
+    <div class="binder-grid">${stacks.map(stackTile).join("")}</div>
     <div class="binder-total" style="margin-top:.6rem;text-align:center">${counts}</div>
   </div></td>`;
   row.after(tr); row.classList.add("open"); openRank = rank;
+  tr.querySelectorAll('.card-tile[data-expand]').forEach(t =>
+    t.addEventListener('click', function(ev){ ev.stopPropagation(); t.classList.toggle('open'); }));
 }
 
 function renderGallery() {
