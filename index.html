@@ -112,7 +112,9 @@ font-size:.85rem;font-family:inherit;padding:.4rem}
 .spin-panel{background:var(--card);border:1px solid var(--gold-deep);border-radius:var(--radius);
 padding:1rem .8rem 1.1rem;text-align:center;margin-bottom:1rem}
 .wheel-wrap{position:relative;width:min(320px,84vw);margin:.7rem auto}
-#wheel-cv{width:100%;height:auto;display:block;border-radius:50%;box-shadow:0 0 24px rgba(255,211,77,.15)}
+#wheel-cv{width:100%;height:auto;display:block;border-radius:50%;box-shadow:0 0 28px rgba(255,211,77,.22)}
+.spin-title{display:flex;align-items:center;justify-content:center;gap:.55rem;font-family:Georgia,'Times New Roman',serif;color:#ffd34d;font-size:1.25rem;letter-spacing:.18em;font-weight:700;margin:.2rem 0 .45rem;text-shadow:0 2px 10px rgba(255,211,77,.28)}
+.spin-crown{flex:0 0 auto;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
 .wheel-pointer{position:absolute;top:-9px;left:50%;transform:translateX(-50%);width:0;height:0;
 border-left:11px solid transparent;border-right:11px solid transparent;border-top:18px solid var(--gold);
 filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
@@ -302,24 +304,30 @@ let wheelRot = 0;
 let spinning = false;
 let countdownTimer = null;
 
+/* Premium black-and-gold casino wheel. 5 equal 72° segments; order and the
+   animateWheelTo landing math are unchanged — this restyle is purely visual. */
 const WHEEL_SEGS = [
-  {rarity:'common', label:'COMMON', color:'#9aa0a8', text:'#141414'},
-  {rarity:'rare', label:'RARE', color:'#4d9fff', text:'#06121f'},
-  {rarity:'epic', label:'EPIC', color:'#b44dff', text:'#160616'},
-  {rarity:'legendary', label:'LEGENDARY', color:'#ffd34d', text:'#241a04'},
-  {rarity:'mythic', label:'MYTHIC', color:'#161616', text:'#ffd34d'}
+  {rarity:'common', label:'COMMON', color:'#2b2f36', text:'#ffd34d'},
+  {rarity:'rare', label:'RARE', color:'#1e3f7a', text:'#ffd34d'},
+  {rarity:'epic', label:'EPIC', color:'#4d2070', text:'#ffd34d'},
+  {rarity:'legendary', label:'LEGENDARY', color:'#8a6414', text:'#ffd34d'},
+  {rarity:'mythic', label:'MYTHIC', color:'#0d0d0f', text:'#ffd34d'}
 ];
 const SPIN_RANGES = {common:[5,25], rare:[50,250], epic:[250,1000], legendary:[1000,10000], mythic:[10000,100000]};
 
 /* DETERMINISTIC DAILY SPIN ROLL — audit contract (keep in sync with any audit reimplementation):
-   centralDate(): 'YYYY-MM-DD' in America/Chicago via Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago',...}).
-   h = cyrb53(uid + '|' + centralDate)
+   date: 'YYYY-MM-DD' in America/Chicago from NETWORK TIME via fetchServerDate()
+   (primary: timeapi.io, fallback: worldtimeapi.org) — NEVER the device clock, which a
+   player can change. centralDate() (device clock) is deprecated and must not feed spin logic.
+   h = cyrb53(uid + '|' + date)
    roll = h % 100  -> rarity: roll<60 common, <85 rare, <95 epic, <99 legendary, else mythic
    cardIdx = Math.floor(h / 256) % 3  -> cardId = rarity + '-' + (cardIdx+1); card ids sort ascending within rarity
    frac = (Math.floor(h / 65536) % 100000) / 100000
    value = round2(min + frac * (max - min)); ranges: common 5-25, rare 50-250, epic 250-1000, legendary 1000-10000, mythic 10000-100000
-   Firestore: collection 'spins', doc id uid + '_' + centralDate,
+   Firestore: collection 'spins', doc id uid + '_' + date,
    fields {uid, date, rarity, cardId, cardName, value, createdAt: serverTimestamp()}.
+   The roll ALGORITHM is byte-identical to before; only the date source changed (network time).
+   Audit reimplementation: recompute from (uid, doc.date) exactly as documented.
    Deterministic: concurrent or repeated writes produce byte-identical docs, so read-back wins any race. */
 function cyrb53(str, seed) {
   seed = seed || 0;
@@ -334,9 +342,37 @@ function cyrb53(str, seed) {
   return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }
 
+/* DEPRECATED: device-clock date. Kept for reference only — spin logic MUST use
+   fetchServerDate() (network time). A player can change their device date to spin again. */
 function centralDate(d) {
   d = d || new Date();
   return new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago', year:'numeric', month:'2-digit', day:'2-digit'}).format(d);
+}
+
+/* Network time for the daily spin. Returns {date:'YYYY-MM-DD', secondsIntoDay:N}
+   for America/Chicago. Primary: timeapi.io; fallback: worldtimeapi.org.
+   THROWS if both providers fail or payloads fail validation — callers fail closed. */
+async function fetchServerDate() {
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  const parse = function(dt) {
+    const s = String(dt);
+    const date = s.slice(0, 10);
+    const tp = s.slice(11, 19).split(':');
+    if (!re.test(date) || tp.length !== 3) throw new Error('bad time payload');
+    const h = +tp[0], m = +tp[1], sec = +tp[2];
+    const sod = h * 3600 + m * 60 + sec;
+    if (!(h >= 0 && h < 24 && m >= 0 && m < 60 && sec >= 0 && sec < 60)) throw new Error('bad time payload');
+    return {date: date, secondsIntoDay: sod};
+  };
+  try {
+    const r = await fetch('https://timeapi.io/api/time/current/zone?timeZone=America/Chicago');
+    const j = await r.json();
+    if (j && j.dateTime) return parse(j.dateTime);
+  } catch(e) { /* fall through to the fallback provider */ }
+  const r2 = await fetch('https://worldtimeapi.org/api/timezone/America/Chicago');
+  const j2 = await r2.json();
+  if (j2 && j2.datetime) return parse(j2.datetime);
+  throw new Error('network time unavailable');
 }
 
 function computeSpin(uid, date) {
@@ -414,7 +450,7 @@ function renderMembers() {
   body.innerHTML =
     '<div class="member-head"><span class="member-hello">👋 ' + name + '</span>' +
     '<button class="link-btn" id="m-signout">Sign out</button></div>' +
-    '<div class="spin-panel"><h3 class="view-title" style="font-size:1.05rem">🎡 DAILY SPIN</h3>' +
+    '<div class="spin-panel"><h3 class="spin-title"><svg class="spin-crown" viewBox="0 0 36 27" width="30" height="22" aria-hidden="true"><path d="M3 21 L3 8 L10 13 L15 3 L18 12 L21 3 L26 13 L33 8 L33 21 Z" fill="#ffd34d"/><rect x="3" y="22" width="30" height="3.4" rx="1.7" fill="#ffd34d"/></svg>DAILY SPIN</h3>' +
     '<p class="view-sub">One free spin per day · wins a full-odds pack</p>' +
     '<div class="wheel-wrap"><canvas id="wheel-cv"></canvas><div class="wheel-pointer"></div></div>' +
     '<button class="spin-btn" id="spin-btn">SPIN</button>' +
@@ -432,6 +468,29 @@ function renderMembers() {
   loadSpins();
 }
 
+/* Representative card art per wheel segment, preloaded from the embedded ART data
+   URLs. The wheel re-draws as each image arrives; segments without a loaded image
+   simply show the jewel-tone fill + gold label. */
+const WHEEL_ART_IDS = ['common-1', 'rare-1', 'epic-1', 'legendary-1', 'mythic-1'];
+const wheelImgs = {};
+function preloadWheelArt() {
+  if (typeof Image === 'undefined' || typeof ART === 'undefined') return;
+  WHEEL_ART_IDS.forEach(function(id, i) {
+    const seg = WHEEL_SEGS[i];
+    if (!seg || wheelImgs[seg.rarity]) return;
+    try {
+      const im = new Image();
+      im.onload = function() { wheelImgs[seg.rarity] = im; drawWheel(); };
+      im.onerror = function() { /* label-only fallback for this segment */ };
+      im.src = ART[id] || '';
+    } catch(e) {}
+  });
+}
+
+/* Black-and-gold casino wheel: near-black face, brushed-gold outer rim, thin gold
+   dividers, per-segment card art clipped to the wedge (oriented radially, top
+   pointing outward), gold letter-spaced labels with a dark scrim, canvas-drawn
+   gold crown hub (no emoji). */
 function drawWheel() {
   const cv = document.getElementById('wheel-cv');
   if (!cv || typeof cv.getContext !== 'function') return;
@@ -442,27 +501,89 @@ function drawWheel() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, S, S);
   const n = WHEEL_SEGS.length, arc = 2 * Math.PI / n;
+  const faceR = R - 16;
+  /* face: near-black base */
+  ctx.beginPath(); ctx.arc(R, R, R - 2, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0d0d0f'; ctx.fill();
+  /* segments */
   for (let i = 0; i < n; i++) {
     const s = WHEEL_SEGS[i];
-    const a0 = -Math.PI / 2 + i * arc, a1 = a0 + arc;
-    ctx.beginPath(); ctx.moveTo(R, R); ctx.arc(R, R, R - 2, a0, a1); ctx.closePath();
+    const a0 = -Math.PI / 2 + i * arc, a1 = a0 + arc, mid = a0 + arc / 2;
+    ctx.beginPath(); ctx.moveTo(R, R); ctx.arc(R, R, faceR, a0, a1); ctx.closePath();
     ctx.fillStyle = s.color; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = '#0a0a0c'; ctx.stroke();
     if (s.rarity === 'mythic') {
-      ctx.beginPath(); ctx.arc(R, R, R - 5, a0, a1);
-      ctx.lineWidth = 3; ctx.strokeStyle = '#ffd34d'; ctx.stroke();
+      /* subtle gold inner glow on the mythic wedge */
+      const g = ctx.createRadialGradient(R, R, faceR * 0.25, R, R, faceR);
+      g.addColorStop(0, 'rgba(255,211,77,0)');
+      g.addColorStop(1, 'rgba(255,211,77,0.28)');
+      ctx.fillStyle = g; ctx.fill();
     }
-    ctx.save(); ctx.translate(R, R); ctx.rotate(a0 + arc / 2);
-    ctx.textAlign = 'right'; ctx.fillStyle = s.text;
-    ctx.font = '800 15px -apple-system,"Segoe UI",Roboto,Arial,sans-serif';
-    ctx.fillText(s.label, R - 20, 5);
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(R, R); ctx.arc(R, R, faceR, a0, a1); ctx.closePath(); ctx.clip();
+    /* representative card art, clipped to the wedge, top pointing outward */
+    const im = wheelImgs[s.rarity];
+    if (im && im.complete && im.naturalWidth) {
+      ctx.save();
+      ctx.translate(R, R); ctx.rotate(mid); ctx.translate(80, 0); ctx.rotate(Math.PI / 2);
+      const iw = im.naturalWidth, ih = im.naturalHeight;
+      const sc = Math.min(56 / iw, 84 / ih), dw = iw * sc, dh = ih * sc;
+      ctx.drawImage(im, -dw / 2, -dh / 2, dw, dh);
+      ctx.restore();
+    }
+    /* gold rarity label near the outer edge, dark scrim for legibility */
+    ctx.save();
+    ctx.translate(R, R); ctx.rotate(mid);
+    try { ctx.letterSpacing = '3px'; } catch(e) {}
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '800 13px -apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+    const tw = ctx.measureText(s.label).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(132 - tw / 2 - 9, -11, tw + 18, 22);
+    ctx.fillStyle = s.text;
+    ctx.fillText(s.label, 132, 1);
     ctx.restore();
+    ctx.restore(); /* un-clip */
   }
-  ctx.beginPath(); ctx.arc(R, R, 26, 0, 2 * Math.PI);
-  ctx.fillStyle = '#0a0a0c'; ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = '#ffd34d'; ctx.stroke();
-  ctx.fillStyle = '#ffd34d'; ctx.font = '20px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('👑', R, R + 1);
+  /* thin gold divider lines between segments */
+  ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 2;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + i * arc;
+    ctx.beginPath();
+    ctx.moveTo(R + Math.cos(a) * 30, R + Math.sin(a) * 30);
+    ctx.lineTo(R + Math.cos(a) * faceR, R + Math.sin(a) * faceR);
+    ctx.stroke();
+  }
+  /* thick brushed-gold outer rim */
+  const rim = ctx.createLinearGradient(R - faceR, R - faceR, R + faceR, R + faceR);
+  rim.addColorStop(0, '#6e5213'); rim.addColorStop(0.28, '#ffd34d');
+  rim.addColorStop(0.5, '#8a6d1f'); rim.addColorStop(0.74, '#ffe9a3');
+  rim.addColorStop(1, '#6e5213');
+  ctx.beginPath(); ctx.arc(R, R, faceR + 7, 0, 2 * Math.PI);
+  ctx.lineWidth = 14; ctx.strokeStyle = rim; ctx.stroke();
+  ctx.beginPath(); ctx.arc(R, R, faceR + 14, 0, 2 * Math.PI);
+  ctx.lineWidth = 2; ctx.strokeStyle = '#3a2f0d'; ctx.stroke();
+  /* hub: dark medallion with gold ring and a canvas-drawn gold crown */
+  ctx.beginPath(); ctx.arc(R, R, 30, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0d0d0f'; ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = '#ffd34d'; ctx.stroke();
+  ctx.fillStyle = '#ffd34d';
+  const cx = R, cy = R - 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - 17, cy + 9);
+  ctx.lineTo(cx - 17, cy - 6);
+  ctx.lineTo(cx - 10, cy + 1);
+  ctx.lineTo(cx - 5.5, cy - 11);
+  ctx.lineTo(cx, cy - 1);
+  ctx.lineTo(cx + 5.5, cy - 11);
+  ctx.lineTo(cx + 10, cy + 1);
+  ctx.lineTo(cx + 17, cy - 6);
+  ctx.lineTo(cx + 17, cy + 9);
+  ctx.closePath(); ctx.fill();
+  ctx.fillRect(cx - 17, cy + 11, 34, 4);
+  const tips = [[-17, -8], [-5.5, -13], [5.5, -13], [17, -8]];
+  for (let k = 0; k < tips.length; k++) {
+    ctx.beginPath(); ctx.arc(cx + tips[k][0], cy + tips[k][1], 2.6, 0, 2 * Math.PI); ctx.fill();
+  }
 }
 
 function setWheelRot(deg) {
@@ -502,8 +623,16 @@ function spinResultHtml(d) {
 async function checkTodaySpin() {
   const btn = document.getElementById('spin-btn');
   if (!db || !fbUser || !btn) return;
+  let sd;
+  try { sd = await fetchServerDate(); }
+  catch(e) {
+    btn.disabled = true; btn.textContent = 'SPIN';
+    const res = document.getElementById('spin-result');
+    if (res) res.innerHTML = '<p class="spin-error">Couldn\'t verify today\'s date — check your connection and try again.</p>';
+    return; /* fail closed: no network time, no spin state */
+  }
   try {
-    const snap = await db.collection('spins').doc(fbUser.uid + '_' + centralDate()).get();
+    const snap = await db.collection('spins').doc(fbUser.uid + '_' + sd.date).get();
     if (snap.exists) {
       const d = snap.data();
       const idx = WHEEL_SEGS.findIndex(function(s){ return s.rarity === d.rarity; });
@@ -511,7 +640,7 @@ async function checkTodaySpin() {
       const res = document.getElementById('spin-result');
       if (res) res.innerHTML = spinResultHtml(d);
       btn.disabled = true; btn.textContent = 'SPUN ✓';
-      startCountdown();
+      startCountdown(sd.secondsIntoDay);
     } else {
       btn.disabled = false; btn.textContent = 'SPIN';
     }
@@ -523,8 +652,17 @@ async function doSpin() {
   spinning = true;
   const btn = document.getElementById('spin-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'SPINNING…'; }
+  let sd;
+  try { sd = await fetchServerDate(); } /* fresh network time on EVERY tap — never a stale date */
+  catch(e) {
+    spinning = false;
+    const res = document.getElementById('spin-result');
+    if (res) res.innerHTML = '<p class="spin-error">Couldn\'t verify today\'s date — check your connection and try again.</p>';
+    if (btn) { btn.disabled = false; btn.textContent = 'SPIN'; }
+    return; /* fail closed: abort the spin */
+  }
   try {
-    const uid = fbUser.uid, date = centralDate();
+    const uid = fbUser.uid, date = sd.date;
     const docId = uid + '_' + date;
     const ref = db.collection('spins').doc(docId);
     let data = null;
@@ -542,7 +680,7 @@ async function doSpin() {
       if (res) res.innerHTML = spinResultHtml(data);
       const b2 = document.getElementById('spin-btn');
       if (b2) { b2.disabled = true; b2.textContent = 'SPUN ✓'; }
-      startCountdown();
+      startCountdown(sd.secondsIntoDay);
       loadSpins();
     });
   } catch(e) {
@@ -553,19 +691,17 @@ async function doSpin() {
   }
 }
 
-function msUntilCentralMidnight() {
-  const parts = new Intl.DateTimeFormat('en-US', {timeZone:'America/Chicago', hour:'numeric', minute:'numeric', second:'numeric', hour12:false}).formatToParts(new Date());
-  const gv = function(t){ return +parts.find(function(p){ return p.type === t; }).value; };
-  const secs = (gv('hour') % 24) * 3600 + gv('minute') * 60 + gv('second');
-  return (86400 - secs) * 1000;
-}
-
-function startCountdown() {
+/* Countdown anchored to NETWORK time (secondsIntoDay from fetchServerDate).
+   Elapsed time is measured with performance.now() (monotonic — unaffected by the
+   user changing the device clock), so the countdown cannot be gamed. */
+function startCountdown(secondsIntoDay) {
   stopCountdown();
   const el = document.getElementById('spin-countdown');
   if (!el) return;
+  const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  const nowFn = function(){ return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); };
   const tick = function(){
-    const ms = msUntilCentralMidnight();
+    const ms = Math.max(0, (86400 - secondsIntoDay) * 1000 - (nowFn() - t0));
     el.textContent = 'Next spin in ' + Math.floor(ms / 3600000) + 'h ' + Math.floor(ms % 3600000 / 60000) + 'm';
   };
   tick();
@@ -602,6 +738,6 @@ async function loadSpins() {
 document.getElementById("splash").classList.add("hide");
 renderStandings(); renderGallery();
 initFirebase();
-renderAuthArea(); renderMembers();
+renderAuthArea(); preloadWheelArt(); renderMembers();
 </script>
 </body></html>
