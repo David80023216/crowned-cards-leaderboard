@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Crown Hunt — Season Leaderboard</title>
+<meta name="description" content="Official Crown Hunt leaderboard — the Top Collector race on Crowned Cards.">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Crown Hunt">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-startup-image" href="splash-1170x2532.png">
+<link rel="stylesheet" href="styles.css?v=1791062285">
+</head>
+<body>
+
+<div id="splash" aria-hidden="true">
+  <div class="splash-crown">👑</div>
+  <div class="splash-title">Crown Hunt</div>
+  <div class="splash-sub">Season Leaderboard</div>
+</div>
+
+<header class="appbar">
+  <div class="appbar-main">
+    <div class="appbar-title">👑 Crown Hunt</div>
+    <div class="appbar-sub" id="season-sub">Monthly Top Collector race</div>
+  </div>
+  <div class="appbar-side">
+    <div class="countdown-chip" id="countdown">⏳ —</div>
+    <button type="button" id="install-btn" class="install-btn" hidden>⬇ Install</button>
+    <a class="appbar-sub-btn" href="https://www.youtube.com/@CrownedCards?sub_confirmation=1" target="_blank" rel="noopener" aria-label="Subscribe to Crowned Cards">🔔</a>
+  </div>
+</header>
+
+<div id="install-banner" class="install-banner" hidden>
+  <div class="install-banner-main">
+    <span class="install-banner-ico">👑</span>
+    <div>
+      <div class="install-banner-title">Install Crown Hunt</div>
+      <div class="install-banner-sub">One tap — standings, binders &amp; prizes, app-fast.</div>
+    </div>
+  </div>
+  <button type="button" id="install-banner-btn" class="install-banner-btn">Install</button>
+  <button type="button" id="install-banner-x" class="install-banner-x" aria-label="Dismiss">✕</button>
+</div>
+
+<div id="ios-sheet" class="sheet-backdrop" hidden>
+  <div class="sheet" role="dialog" aria-label="Add Crown Hunt to your home screen">
+    <div class="sheet-grab"></div>
+    <div class="sheet-title">👑 Add Crown Hunt to your home screen</div>
+    <ol class="sheet-steps">
+      <li>Tap the <strong>Share</strong> button <span class="share-ico">⎙</span> below</li>
+      <li>Choose <strong>Add to Home Screen</strong></li>
+      <li>Open it like an app — standings, binders &amp; prizes, app-fast</li>
+    </ol>
+    <button type="button" id="ios-sheet-close" class="sheet-close">Got it</button>
+  </div>
+</div>
+
+<main class="views">
+
+  <section class="view active" id="view-standings" aria-label="Standings">
+    <section class="spotlight" id="spotlight" hidden>
+      <h2>👑 TOP COLLECTOR</h2>
+      <div class="spot-card">
+        <div class="crown-medal" aria-hidden="true">👑</div>
+        <div class="spot-info">
+          <div class="spot-name" id="spot-name">—</div>
+          <div class="spot-pts" id="spot-pts"></div>
+          <div class="spot-streak" id="spot-streak"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="search-wrap">
+      <input type="search" id="player-search" placeholder="🔍 Search collectors…" autocomplete="off" aria-label="Search collectors">
+    </div>
+
+    <section class="board">
+      <h2>SEASON STANDINGS</h2>
+      <p class="board-caption">Highest binder value takes Top Collector — ties broken by most mythics, then most legendaries, then longest streak · tap a collector to open their binder 🗂️</p>
+      <p class="snapshot" id="snapshot">Loading standings…</p>
+      <div class="table-wrap"><table class="standings-table">
+        <thead><tr><th>RANK</th><th>COLLECTOR</th><th>BINDER VALUE</th><th>MYTHICS</th><th>STREAK</th></tr></thead>
+        <tbody id="rows-season"></tbody>
+      </table></div>
+      <p class="empty-msg" id="empty-season" hidden>No collectors match your search.</p>
+      <div class="start-soon" id="start-soon" hidden>
+        <p class="crown-big">👑</p>
+        <p><strong id="empty-title">SEASON 1 — BE THE FIRST ON THE BOARD 👑</strong></p>
+        <p class="board-caption">Rip a pack on a Crown Hunt video — your binder goes up here.</p>
+      </div>
+    </section>
+  </section>
+
+  <section class="view" id="view-prize" aria-label="Prize">
+    <h2 class="view-title">🏆 THIS SEASON'S PRIZES</h2>
+    <p class="board-caption view-sub">The monthly Top Collector wins ACTUAL physical sports cards, mailed to them — 1st, 2nd and 3rd place all get crowned.</p>
+    <div class="prize-grid" id="prize-grid">
+      <div class="prize-item">
+        <div class="prize-place">1ST PLACE</div>
+        <div class="prize-photo"><img src="assets/prize-1st.jpg" alt="1st place prize: 1990 Fleer Larry Bird #8 PSA 10"></div>
+        <p class="prize-name">1990 Fleer Larry Bird #8 · PSA 10</p>
+      </div>
+      <div class="prize-item">
+        <div class="prize-place">2ND PLACE</div>
+        <div class="prize-photo"><img src="assets/prize-2nd.jpg" alt="2nd place prize: Victor Wembanyama Mosaic Rookie"></div>
+        <p class="prize-name">Victor Wembanyama Mosaic RC</p>
+      </div>
+      <div class="prize-item">
+        <div class="prize-place">3RD PLACE</div>
+        <div class="prize-photo"><img src="assets/prize-3rd.jpg" alt="3rd place prize: Derek Jeter 1993 Topps Draft Pick"></div>
+        <p class="prize-name">Derek Jeter 1993 Topps #98 Draft Pick</p>
+      </div>
+    </div>
+    <div class="prize-card" id="prize-card">
+      <div class="prize-meta">
+        <p class="prize-fine">Free entry · 18+ · US shipping only · not sponsored or endorsed by YouTube.</p>
+        <p class="prize-fine">Tiebreaker: most mythics → most legendaries → longest streak.</p>
+      </div>
+    </div>
+    <p class="notice">📢 You must be <a href="https://www.youtube.com/@CrownedCards?sub_confirmation=1" target="_blank" rel="noopener">subscribed to <strong>Crowned Cards</strong></a> to win.</p>
+  </section>
+
+  <section class="view" id="view-helper" aria-label="Crown Helper">
+    <h2 class="view-title">💬 CROWN HELPER</h2>
+    <p class="board-caption view-sub">Got a question about the game? Ask away! I'm a little helper bot, not a real person.</p>
+    <div class="chat-box" id="chat-box" aria-live="polite"></div>
+    <div class="chat-chips" id="chat-chips">
+      <button type="button" data-q="How do I play?">How do I play?</button>
+      <button type="button" data-q="What is a pull?">What is a pull?</button>
+      <button type="button" data-q="What are the rarity odds?">Rarity odds?</button>
+      <button type="button" data-q="Who is winning?">Who's winning?</button>
+      <button type="button" data-q="How do streaks work?">How do streaks work?</button>
+      <button type="button" data-q="What is the prize?">What's the prize?</button>
+      <button type="button" data-q="When does the season end?">When does the season end?</button>
+    </div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Ask about the game…" autocomplete="off" aria-label="Ask Crown Helper a question" maxlength="200">
+      <button type="button" id="chat-send">Ask</button>
+    </div>
+  </section>
+
+  <section class="view" id="view-rules" aria-label="Rules">
+    <h2 class="view-title">📜 HOW TO PLAY</h2>
+    <div class="howto-box">
+      <p><strong>👑 How to play — rip packs, not points</strong> — Watch a Crown Hunt video, then comment your pick: name the card that takes the crown. Every correct prediction mints a <strong>digital pack pull</strong> — a fictional-athlete card with a whole-dollar value. The player with the highest <strong>total binder value</strong> at month's end is the Top Collector. No points anywhere.</p>
+      <p><strong>⚔️ Battle predictions</strong> — On battle videos, comment your pick <em>before</em> the battle resolves. Correct winner = one <strong>standard pull</strong> (counts toward the 3/day scoring-pull cap). Picks posted after the winner is declared don't score.</p>
+      <p><strong>📸 Screenshot claims</strong> — In the flash screenshot game, a correct screenshot claim = one <strong>standard pull</strong> (counts toward the 3/day scoring-pull cap).</p>
+      <p><strong>🎲 Pull odds (standard pulls)</strong> — common $10–50 (60%) · rare $50–250 (25%) · epic $250–1K (10%) · legendary $1K–10K (4%) · mythic $10K–100K (1%).</p>
+      <p><strong>✨ Daily dust</strong> — Any other comment on a hunt video = one <strong>dust pull</strong> (common-only, $5–25), once per Central day. Dust never counts toward the scoring cap — just show up and you rip something.</p>
+      <p><strong>🔥 Streaks = boosted pulls</strong> — Play consecutive days (any credited activity keeps the streak alive). Hit 3, 7, 14, or 30 days and you get a <strong>streak pull with better odds</strong>, once per streak run: 3d — rare 30 / epic 40 / legendary 20 / mythic 10 · 7d — epic 50 / legendary 35 / mythic 15 · 14d — epic 30 / legendary 45 / mythic 25 · 30d — epic 20 / legendary 45 / mythic 35. Miss a day and the streak resets.</p>
+      <p><strong>🗂️ Your binder</strong> — Tap any collector's row on the standings to open their binder: every card they've pulled, with art, name, rarity, value, and how they earned it. Sorts by biggest pulls first.</p>
+      <p><strong>🏟️ Weekly tournament</strong> — Mon–Thu quarterfinals, Fri semifinals, Sat championship, Sun crowning + next week's bracket reveal. Weekly themes rotate. Fair fights only: cards battle within 3x of each other's value. The flash screenshot game runs daily as the side game.</p>
+      <p><strong>🗓️ Monthly seasons</strong> — Binders accumulate all month and reset on the 1st. Season 1 runs Oct 3–31. Nobody's ever too far behind to join.</p>
+      <p><strong>🏆 Top Collector</strong> — The biggest binder value at month's end wins <strong>actual physical sports cards, mailed to you</strong> (Season 1 pays the top 3: Bird PSA 10 · Wemby Mosaic RC · Jeter Draft Pick). Tiebreaker: most mythics → most legendaries → longest streak. Free entry, 18+, US shipping only. Not sponsored or endorsed by YouTube.</p>
+      <p><strong>🎮 Digital cards are game pieces only</strong> — Crown Hunt cards have <strong>no cash value</strong>. They can't be redeemed, traded, or sold. The Season 1 prizes are real sports cards awarded by the channel — separate from your digital binder.</p>
+      <p><strong>⚖️ Fair play</strong> — One account per player, no spam-dumping past the daily cap, keep comments clean. The channel's scoring calls are final.</p>
+    </div>
+    <p class="notice">📢 You must be <a href="https://www.youtube.com/@CrownedCards?sub_confirmation=1" target="_blank" rel="noopener">subscribed to <strong>Crowned Cards</strong></a> to win.</p>
+  </section>
+
+</main>
+
+<nav class="tabbar" aria-label="Sections">
+  <button type="button" data-view="view-standings" class="active"><span class="tab-ico">👑</span><span class="tab-label">Standings</span></button>
+  <button type="button" data-view="view-prize"><span class="tab-ico">🏆</span><span class="tab-label">Prize</span></button>
+  <button type="button" data-view="view-helper"><span class="tab-ico">💬</span><span class="tab-label">Crown Helper</span></button>
+  <button type="button" data-view="view-rules"><span class="tab-ico">📜</span><span class="tab-label">Rules</span></button>
+</nav>
+
+<script id="ch-data" type="application/json">
+{
+ "updated_at": "2026-10-03T16:32:47-05:00",
+ "season": {
+  "name": "Season 1",
+  "label": "October 2026",
+  "month": "2026-10",
+  "start": "2026-10-03",
+  "end": "2026-10-31"
+ },
+ "season_state": "live",
+ "standings": [],
+ "player_count": 0,
+ "top_collector": null,
+ "prize": {
+  "label": "🏆 Season 1 Crown Cards",
+  "prizes": [
+   {
+    "image": "assets/prize-1st.jpg",
+    "name": "1990 Fleer Larry Bird #8 · PSA 10",
+    "place": "1st"
+   },
+   {
+    "image": "assets/prize-2nd.jpg",
+    "name": "Victor Wembanyama Mosaic RC",
+    "place": "2nd"
+   },
+   {
+    "image": "assets/prize-3rd.jpg",
+    "name": "Derek Jeter 1993 Topps #98 Draft Pick",
+    "place": "3rd"
+   }
+  ]
+ }
+}
+</script>
+
+<footer>
+  <p>Crown Hunt · Crowned Cards 👑 — TWO CARDS ENTER. ONE CARD SURVIVES.</p>
+</footer>
+
+<script src="app.js?v=1791062113"></script>
+<script>
+/* Register the app-shell service worker (https/localhost only). */
+(function () {
+  try {
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      });
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
