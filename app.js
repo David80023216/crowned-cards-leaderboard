@@ -632,7 +632,9 @@ function bindHandle() {
    - reward rolls are deterministic (uid|rarepack|referredUid) and the cheat
      audit recomputes every one; multi-uid farming rings are flagged there */
 var pendingRef = null;
+var pendingSrc = null;
 var referrerHandle = '';
+var SHARE_SRCS = ['system','copy','facebook','x','whatsapp','telegram','youtube'];
 
 function initReferral(){
   try {
@@ -645,11 +647,32 @@ function initReferral(){
       try { pendingRef = localStorage.getItem('ch_ref'); } catch(e){}
       if (pendingRef && !/^[A-Za-z0-9]{20,36}$/.test(pendingRef)) pendingRef = null;
     }
+    const s = (q.get('src') || '').trim();
+    if (s && SHARE_SRCS.indexOf(s) >= 0) {
+      pendingSrc = s;
+      try { localStorage.setItem('ch_src', s); } catch(e){}
+    } else {
+      try { pendingSrc = localStorage.getItem('ch_src'); } catch(e){}
+      if (pendingSrc && SHARE_SRCS.indexOf(pendingSrc) < 0) pendingSrc = null;
+    }
   } catch(e){}
 }
 
-function shareLink(){
-  return 'https://david80023216.github.io/crowned-cards-leaderboard/?ref=' + (fbUser ? fbUser.uid : '');
+function shareLink(src){
+  let u = 'https://david80023216.github.io/crowned-cards-leaderboard/?ref=' + (fbUser ? fbUser.uid : '');
+  if (src && SHARE_SRCS.indexOf(src) >= 0) u += '&src=' + src;
+  return u;
+}
+
+/* Share-attempt log (write-only Firestore collection 'shares').
+   Lets us measure attempts + conversion per platform. Fire-and-forget. */
+function logShare(platform){
+  if (!db || !fbUser || SHARE_SRCS.indexOf(platform) < 0) return;
+  db.collection('shares').add({
+    uid: fbUser.uid,
+    platform: platform,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(function(){});
 }
 
 /* After auth: drop self-referrals, resolve the referrer's @handle for the
@@ -657,8 +680,8 @@ function shareLink(){
 async function resolveReferrer(){
   if (!pendingRef || !db || !fbUser) return;
   if (pendingRef === fbUser.uid) {
-    pendingRef = null;
-    try { localStorage.removeItem('ch_ref'); } catch(e){}
+    pendingRef = null; pendingSrc = null;
+    try { localStorage.removeItem('ch_ref'); localStorage.removeItem('ch_src'); } catch(e){}
     return;
   }
   try {
@@ -678,18 +701,20 @@ async function resolveReferrer(){
 /* Called after a NEW daily spin is written: credit the referrer, once. */
 function creditReferrer(){
   if (!pendingRef || !db || !fbUser) return;
-  db.collection('referrals').doc(fbUser.uid).set({
+  const data = {
     referrer: pendingRef,
     referred: fbUser.uid,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){
-    try { localStorage.removeItem('ch_ref'); } catch(e){}
-    pendingRef = null;
+  };
+  if (pendingSrc) data.src = pendingSrc;
+  db.collection('referrals').doc(fbUser.uid).set(data).then(function(){
+    try { localStorage.removeItem('ch_ref'); localStorage.removeItem('ch_src'); } catch(e){}
+    pendingRef = null; pendingSrc = null;
   }).catch(function(){ /* already credited / invalid — nothing to do */ });
 }
 
 function platformShareUrl(net){
-  const u = encodeURIComponent(shareLink());
+  const u = encodeURIComponent(shareLink(net));
   const t = encodeURIComponent("I'm ripping free card packs on Crown Hunt — grab your daily pack, battle for REAL cards!");
   if (net === 'facebook') return 'https://www.facebook.com/sharer/sharer.php?u=' + u;
   if (net === 'x') return 'https://twitter.com/intent/tweet?text=' + t + '&url=' + u;
@@ -742,21 +767,24 @@ function bindShare(){
     msg.className = ok ? 'handle-ok' : 'handle-err';
   };
   const link = shareLink();
-  const text = "I'm ripping free card packs on Crown Hunt — grab your daily pack, battle for REAL cards! " + link;
+  const sysLink = shareLink('system');
+  const text = "I'm ripping free card packs on Crown Hunt — grab your daily pack, battle for REAL cards! " + sysLink;
   const copyLink = function(){
-    const done = function(){ say('Link copied — send it to a friend!', true); };
+    const done = function(){ say('Link copied — send it to a friend!', true); logShare('copy'); };
     const fallback = function(){
       const i = document.getElementById('share-link');
       if (i) { i.select(); try { document.execCommand('copy'); done(); return; } catch(e){} }
       say('Copy this link: ' + link, false);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(link).then(done, fallback);
+      navigator.clipboard.writeText(shareLink('copy')).then(done, fallback);
     } else fallback();
   };
   if (sb) sb.onclick = function(){
     if (navigator.share) {
-      navigator.share({title: 'Crown Hunt', text: text, url: link}).catch(function(){});
+      navigator.share({title: 'Crown Hunt', text: text, url: sysLink})
+        .then(function(){ logShare('system'); })
+        .catch(function(){});
     } else copyLink();
   };
   if (cb) cb.onclick = copyLink;
@@ -764,6 +792,7 @@ function bindShare(){
   nets.forEach(function(b){
     b.onclick = function(){
       const net = b.getAttribute('data-net');
+      logShare(net);
       if (net === 'youtube') {
         copyLinkToClipboard(function(){
           const yn = document.getElementById('yt-note');
