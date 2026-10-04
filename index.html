@@ -164,6 +164,41 @@ font-weight:800;font-size:1.05rem;letter-spacing:.06em;padding:.7rem 2.6rem;marg
 cursor:pointer;font-family:inherit}
 .spin-btn:disabled{opacity:.45;cursor:default}
 a.spin-btn.sub-btn{display:inline-block;text-decoration:none;line-height:2.7;padding:0 1.6rem;margin:.4rem 0 .2rem}
+/* ---- Best-experience upgrades (Shawn 2026-10-03): pack CTA, season countdown, pull feed, celebration ---- */
+.season-banner{text-align:center;font-size:.78rem;font-weight:700;letter-spacing:.06em;color:#0f0c04;
+background:linear-gradient(135deg,#ffd34d,#e0a92e);border-radius:10px;padding:.5rem .8rem;margin:0 0 .6rem;
+box-shadow:0 2px 14px rgba(255,211,77,.25)}
+.pack-cta{display:block;width:100%;border:0;border-radius:14px;padding:.9rem;margin:0 0 .7rem;cursor:pointer;
+font-family:inherit;font-size:1rem;font-weight:800;letter-spacing:.05em;color:#241a04;
+background:linear-gradient(135deg,#ffd34d,#c9962a);box-shadow:0 4px 22px rgba(255,211,77,.35)}
+.pack-cta:active{transform:scale(.98)}
+.pack-cta.ripped{background:#23232b;color:var(--muted);box-shadow:none;cursor:default;font-weight:600}
+.pack-cta.locked{background:linear-gradient(135deg,#3a3a44,#26262e);color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold-deep)}
+.pack-cta-sub{display:block;font-size:.72rem;font-weight:600;letter-spacing:.02em;opacity:.75;margin-top:.2rem}
+.feed-label{font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);margin:0 0 .25rem}
+.pull-feed{overflow:hidden;margin:0 0 .7rem;border-top:1px solid #2a2a33;border-bottom:1px solid #2a2a33;
+-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
+mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.pull-ticker{display:inline-flex;gap:.5rem;white-space:nowrap;padding:.45rem 0;animation:tickscroll 30s linear infinite;will-change:transform}
+.pull-feed:active .pull-ticker{animation-play-state:paused}
+@keyframes tickscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.pull-chip{display:inline-flex;align-items:center;gap:.4rem;background:#17171d;border:1px solid #2c2c36;border-radius:999px;
+padding:.28rem .7rem;font-size:.72rem;color:var(--text)}
+.pull-chip .pc-handle{color:var(--gold);font-weight:700}
+.pull-chip .pc-r{font-size:.62rem;font-weight:800;letter-spacing:.05em;padding:.1rem .4rem;border-radius:999px}
+.pc-r.common{background:#3a3f4a;color:#cfd4de}.pc-r.rare{background:#1d3fbf;color:#fff}
+.pc-r.epic{background:#6d28d9;color:#fff}.pc-r.legendary{background:#b45309;color:#fff}
+.pc-r.grail{background:linear-gradient(135deg,#ffd34d,#b98f1f);color:#241a04}
+.pull-chip .pc-v{color:var(--gold);font-weight:700}
+.celebrate-veil{position:fixed;inset:0;z-index:200;pointer-events:none;
+background:radial-gradient(ellipse at center,rgba(255,211,77,.30),transparent 65%);animation:veilfade 1.6s ease forwards}
+@keyframes veilfade{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
+.confetti-bit{position:fixed;z-index:201;pointer-events:none;width:8px;height:12px;border-radius:2px;
+top:38%;left:50%;animation:confly 1.5s ease-out forwards}
+@keyframes confly{to{transform:translate(var(--cx),var(--cy)) rotate(var(--cr));opacity:0}}
+.sound-toggle{background:none;border:1px solid #2c2c36;border-radius:999px;color:var(--muted);
+font-size:.8rem;padding:.15rem .55rem;cursor:pointer;font-family:inherit}
+.spin-title-row{display:flex;align-items:center;justify-content:space-between}
 .sub-note{margin:1.1rem auto 0;max-width:420px;padding:.9rem 1rem;border:1px solid rgba(255,211,77,.35);border-radius:12px;background:rgba(255,211,77,.06)}
 /* ---- Mystery pack rip (Shawn 2026-10-03): sealed foil pack, tear, card flip reveal ----
    True odds printed on the pack like a real product: 60/25/10/4/1 -> 3:5 / 1:4 / 1:10 / 1:25 / 1:100 */
@@ -303,6 +338,10 @@ font-variant-numeric:tabular-nums}
 <section class="view active" id="v-standings">
 <h2 class="view-title">🏆 TOP COLLECTORS</h2>
 <p class="view-sub">Ranked by total collection value · tap a player to open their binder</p>
+<div class="season-banner" id="season-banner"></div>
+<button class="pack-cta" id="pack-cta" style="display:none" onclick="goRip()"></button>
+<p class="feed-label">🔥 FRESH PULLS</p>
+<div class="pull-feed" aria-label="Fresh pulls"><div class="pull-ticker" id="pull-ticker"></div></div>
 <p class="prize-race" id="prize-race"></p>
 <input type="search" id="standings-search" class="standings-search" placeholder="Search players…" autocomplete="off" aria-label="Search players">
 <div class="standings-scroll"><table class="standings-table"><tbody id="standings-body"></tbody></table></div>
@@ -498,6 +537,9 @@ function renderStandings() {
   const top3 = all.slice(0, 3);
   const race = document.getElementById("prize-race");
   if (race) race.innerHTML = `🏆 <b>As it stands:</b> ` + top3.map((p,i) => `${p.handle} takes ${PRIZE_SHORT[i].takes}`).join(" · ");
+  renderSeasonBanner();
+  renderPullFeed();
+  renderPackCta();
 }
 function bindStandingsSearch() {
   const sq = document.getElementById('standings-search');
@@ -553,6 +595,135 @@ function show(id, btn) {
   btn.classList.add("active");
   window.scrollTo(0,0);
 }
+/* ============ Best-experience upgrades (Shawn 2026-10-03) ============ */
+/* Pack CTA state: the Bonus tab is the source of truth; the Standings hero button mirrors it. */
+let packUiState = 'unknown'; /* unknown | locked | ready | ripped */
+function setPackState(st){ packUiState = st; renderPackCta(); }
+function renderPackCta(){
+  const el = document.getElementById('pack-cta'); if (!el) return;
+  if (packUiState === 'unknown') { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.className = 'pack-cta' + (packUiState === 'ripped' ? ' ripped' : packUiState === 'locked' ? ' locked' : '');
+  if (packUiState === 'ripped')
+    el.innerHTML = '✅ TODAY’S PACK RIPPED<span class="pack-cta-sub">Next pack unlocks at midnight Central</span>';
+  else if (packUiState === 'locked')
+    el.innerHTML = '\u{1F512} UNLOCK TODAY’S PACK<span class="pack-cta-sub">Subscribe to @CrownedCards to rip</span>';
+  else
+    el.innerHTML = '\u{1F381} RIP TODAY’S PACK<span class="pack-cta-sub">Free · one pack every day</span>';
+}
+/* Hero tap: jump to the Bonus tab; if the pack is ready, rip it immediately. */
+function goRip(){
+  if (packUiState === 'ripped') return;
+  const tabs = document.querySelectorAll('.tabbar button');
+  if (tabs.length) show('v-members', tabs[tabs.length - 1]);
+  if (packUiState === 'ready') setTimeout(function(){ doSpin(); }, 350);
+}
+/* Haptics: guarded, mobile-only effect. */
+function buzz(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e){} }
+/* Tiny WebAudio SFX — synthesized in code, zero audio files. Tear = filtered noise
+   burst; reveal = rising chime, richer for rarer pulls. AudioContext is created on the
+   first user gesture (doSpin is a tap), so autoplay policies are satisfied. */
+const SFX = {
+  muted: (function(){ try { return localStorage.getItem('ch_sfx') === 'off'; } catch(e){ return false; } })(),
+  ctx: null,
+  ensure(){
+    if (this.ctx || this.muted) return this.ctx;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) this.ctx = new AC();
+    } catch(e){}
+    return this.ctx;
+  },
+  tear(){
+    const ctx = this.ensure(); if (!ctx) return;
+    try {
+      const dur = 0.4, buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 1.6);
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = 0.7;
+      const g = ctx.createGain(); g.gain.value = 0.5;
+      src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start();
+    } catch(e){}
+  },
+  reveal(rarity){
+    const ctx = this.ensure(); if (!ctx) return;
+    try {
+      const steps = {common: [523.25, 659.25, 783.99],
+                     rare: [523.25, 659.25, 783.99, 1046.5],
+                     epic: [523.25, 659.25, 783.99, 1046.5, 1318.5],
+                     legendary: [392, 523.25, 659.25, 783.99, 1046.5, 1318.5],
+                     grail: [392, 523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98]}[rarity] || [523.25, 659.25, 783.99];
+      const t0 = ctx.currentTime;
+      steps.forEach(function(f, i){
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'triangle'; o.frequency.value = f;
+        const t = t0 + i * 0.09;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+        o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.55);
+      });
+    } catch(e){}
+  },
+  toggle(){
+    this.muted = !this.muted;
+    try { localStorage.setItem('ch_sfx', this.muted ? 'off' : 'on'); } catch(e){}
+    if (!this.muted) this.ctx = null;
+  }
+};
+function isBigPull(r){ return r === 'epic' || r === 'legendary' || r === 'grail'; }
+/* Rare-pull celebration: full-screen gold veil + confetti burst. Commons stay quick and quiet. */
+function celebratePull(){
+  try {
+    const veil = document.createElement('div'); veil.className = 'celebrate-veil';
+    document.body.appendChild(veil);
+    setTimeout(function(){ veil.remove(); }, 1700);
+    const colors = ['#ffd34d','#fff7dd','#e0a92e','#ffffff','#ffb700'];
+    for (let i = 0; i < 46; i++){
+      const b = document.createElement('div'); b.className = 'confetti-bit';
+      b.style.background = colors[i % colors.length];
+      const ang = Math.random() * Math.PI * 2, dist = 90 + Math.random() * 200;
+      b.style.setProperty('--cx', (Math.cos(ang) * dist).toFixed(0) + 'px');
+      b.style.setProperty('--cy', (Math.sin(ang) * dist).toFixed(0) + 'px');
+      b.style.setProperty('--cr', (Math.random() * 720 - 360).toFixed(0) + 'deg');
+      document.body.appendChild(b);
+      (function(el){ setTimeout(function(){ el.remove(); }, 1650); })(b);
+    }
+  } catch(e){}
+}
+/* Season countdown banner (day granularity — not security-critical, device clock is fine). */
+function renderSeasonBanner(){
+  const el = document.getElementById('season-banner'); if (!el) return;
+  let now;
+  try { now = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Chicago'})); }
+  catch(e){ now = new Date(); }
+  const end = new Date(2026, 9, 31, 23, 59, 59); /* Oct 31 2026, Central wall-clock */
+  const days = Math.ceil((end - now) / 86400000);
+  el.textContent = days > 1 ? '⏳ SEASON 1 ENDS OCT 31 · ' + days + ' DAYS LEFT'
+    : days === 1 ? '⏳ SEASON 1 ENDS TOMORROW · FINAL DAY'
+    : '⏳ SEASON 1 ENDS TODAY';
+}
+/* Fresh-pulls ticker. DEMO: synthesized from the fake-player pull lists (the page banner
+   already says DEMO PREVIEW — FAKE PLAYERS). REAL BOARD PORT: replace with the latest N
+   docs from Firestore `spins` ordered by createdAt desc — expose handle + rarity + value only. */
+function renderPullFeed(){
+  const tick = document.getElementById('pull-ticker'); if (!tick || typeof PLAYERS === 'undefined') return;
+  const items = [];
+  PLAYERS.forEach(function(p){
+    (p.pulls || []).forEach(function(pl){
+      items.push({h: p.handle, r: pl.rarity, v: +pl.value || 0, c: ((typeof CARDS === 'undefined' ? {} : CARDS)[pl.card] || {}).name || pl.card});
+    });
+  });
+  items.sort(function(a, b){ return b.v - a.v; });
+  const chip = function(it){
+    return '<span class="pull-chip"><span class="pc-handle">' + esc(it.h) + '</span>' +
+      '<span class="pc-r ' + esc(it.r) + '">' + esc(it.r).toUpperCase() + '</span>' +
+      '<span>' + esc(it.c) + '</span><span class="pc-v">' + money(it.v) + '</span></span>';
+  };
+  const half = items.slice(0, 12).map(chip).join('');
+  tick.innerHTML = half + half; /* doubled for the seamless marquee loop */
+}
 // ================= Firebase auth + Members daily spin =================
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
@@ -582,6 +753,8 @@ function stageCls(add, remove){
 /* Tap mid-rip to skip straight to the reveal — never trap the user. */
 function skipRip(){
   if (!spinning || !ripData) return;
+  SFX.reveal(ripData.rarity); buzz([40,40,60]);
+  if (isBigPull(ripData.rarity)) celebratePull();
   finishRip(ripData, ripSd);
 }
 /* Rip sequence (~2.9s, skippable): shake -> tear (strip flies, gold burst) ->
@@ -603,10 +776,11 @@ function startRip(data, sd){
     st.classList.remove('shaking'); void st.offsetWidth; st.classList.add('shaking'); /* re-trigger */
     st.onclick = skipRip;
   }
-  ripLater(function(){ stageCls(['tearing'], ['shaking']); }, 620);
+  ripLater(function(){ stageCls(['tearing'], ['shaking']); SFX.tear(); buzz(35); }, 620);
   ripLater(function(){ stageCls(['ripped']); }, 1150);
   ripLater(function(){ stageCls(['flipped']); }, 1950);
-  ripLater(function(){ stageCls(['revealed']); }, 2600); /* card glides to center hero, torn pack fades */
+  ripLater(function(){ stageCls(['revealed']); SFX.reveal(data.rarity); buzz([40,40,60]);
+    if (isBigPull(data.rarity)) celebratePull(); }, 2600); /* card glides to center hero, torn pack fades */
   ripLater(function(){ finishRip(data, sd); }, 2950);
 }
 function finishRip(data, sd){
@@ -624,6 +798,7 @@ function finishRip(data, sd){
   if (res) res.innerHTML = spinResultHtml(data);
   var btn = document.getElementById('spin-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'RIPPED ✓'; }
+  setPackState('ripped');
   if (sd) startCountdown(sd.secondsIntoDay);
   loadSpins();
   spinning = false; ripData = null; ripSd = null;
@@ -850,6 +1025,7 @@ function renderMembers() {
   stopCountdown();
   if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') {
     body.innerHTML = membersLockedHtml('The bonus section is launching soon. Check back after the next update.');
+    setPackState('unknown');
     return;
   }
   if (authFailed) {
@@ -858,15 +1034,18 @@ function renderMembers() {
       '<p class="view-sub">Could not start your session — please check back soon.</p></div>' +
       handleHtml();
     bindHandle();
+    setPackState('unknown');
     return;
   }
   if (!fbUser) {
     /* anonymous sign-in still in flight — not an error, just wait */
     body.innerHTML = membersLockedHtml('Starting your session…');
+    setPackState('unknown');
     return;
   }
   if (!subCheckDone) {
     body.innerHTML = membersLockedHtml('Checking your membership…');
+    setPackState('unknown');
     return;
   }
   if (!subUnlocked) {
@@ -881,12 +1060,13 @@ function renderMembers() {
     const ub = document.getElementById('unlock-btn');
     if (ub) ub.onclick = unlockSpin;
     bindHandle();
+    setPackState('locked');
     return;
   }
   const handleNudge = handleSaved ? '' :
     '<p class="handle-nudge">⚠️ Add your @handle below so we can find you if you win.</p>';
   body.innerHTML =
-    '<div class="spin-panel"><h3 class="spin-title"><svg class="spin-crown" viewBox="0 0 36 27" width="30" height="22" aria-hidden="true"><path d="M3 21 L3 8 L10 13 L15 3 L18 12 L21 3 L26 13 L33 8 L33 21 Z" fill="#ffd34d"/><rect x="3" y="22" width="30" height="3.4" rx="1.7" fill="#ffd34d"/></svg>DAILY PACK</h3>' +
+    '<div class="spin-panel"><div class="spin-title-row"><h3 class="spin-title"><svg class="spin-crown" viewBox="0 0 36 27" width="30" height="22" aria-hidden="true"><path d="M3 21 L3 8 L10 13 L15 3 L18 12 L21 3 L26 13 L33 8 L33 21 Z" fill="#ffd34d"/><rect x="3" y="22" width="30" height="3.4" rx="1.7" fill="#ffd34d"/></svg>DAILY PACK</h3><button class="sound-toggle" id="sound-toggle" aria-label="Toggle pack sounds"></button></div>' +
     '<p class="view-sub">One free pack every day — tap the pack to rip it open</p>' +
     packStageHtml() +
     '<button class="spin-btn" id="spin-btn">RIP THE PACK</button>' +
@@ -900,6 +1080,9 @@ function renderMembers() {
     '<p class="view-sub" id="spins-total"></p><div id="spins-list"></div></div>';
   const sb = document.getElementById('spin-btn');
   if (sb) sb.onclick = doSpin;
+  const stg = document.getElementById('sound-toggle');
+  if (stg) { stg.textContent = SFX.muted ? '\u{1F507}' : '\u{1F50A}';
+    stg.onclick = function(){ SFX.toggle(); stg.textContent = SFX.muted ? '\u{1F507}' : '\u{1F50A}'; }; }
   const st0 = document.getElementById('pack-stage');
   if (st0) st0.onclick = function(){ doSpin(); }; /* tapping the pack rips it too */
   bindHandle();
@@ -948,9 +1131,11 @@ async function checkTodaySpin() {
       const res = document.getElementById('spin-result');
       if (res) res.innerHTML = spinResultHtml(d);
       btn.disabled = true; btn.textContent = 'RIPPED ✓';
+      setPackState('ripped');
       startCountdown(sd.secondsIntoDay);
     } else {
       btn.disabled = false; btn.textContent = 'RIP THE PACK';
+      setPackState('ready');
     }
   } catch(e){ /* offline or permission error: leave button enabled, rip will surface the error */ }
 }
@@ -967,6 +1152,7 @@ async function doSpin() {
     const res = document.getElementById('spin-result');
     if (res) res.innerHTML = '<p class="spin-error">Couldn\'t verify today\'s date — check your connection and try again.</p>';
     if (btn) { btn.disabled = false; btn.textContent = 'RIP THE PACK'; }
+    setPackState('ready');
     return; /* fail closed: abort the rip */
   }
   try {
@@ -989,6 +1175,7 @@ async function doSpin() {
     const res = document.getElementById('spin-result');
     if (res) res.innerHTML = '<p class="spin-error">Rip failed — check your connection and try again.</p>';
     if (btn) { btn.disabled = false; btn.textContent = 'RIP THE PACK'; }
+    setPackState('ready');
   }
 }
 
