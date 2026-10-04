@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Crown Hunt — Season Leaderboard</title>
-<meta name="description" content="Crown Hunt Top Collector race — comment = card, winning pick = better card. Season 1 top 3 win real cards.">
-<meta property="og:title" content="Crown Hunt — Top Collectors">
-<meta property="og:description" content="Comment = card. Winning pick = better card. Top collector wins real cards Oct 31.">
+<title>Crown Streaks — Pick winners. Build your streak.</title>
+<meta name="description" content="Crown Streaks on Crowned Cards: pick the winner every day, build your streak, don't break it. Free to play. Top 3 monthly streaks win cash.">
+<meta property="og:title" content="Crown Streaks — Pick winners. Build your streak.">
+<meta property="og:description" content="One pick a day. Get it right and your streak grows. Wrong or miss and you're back to zero. Top 3 streaks each month win cash. Free to play.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://david80023216.github.io/crowned-cards-leaderboard/">
 <meta property="og:image" content="https://david80023216.github.io/crowned-cards-leaderboard/og-image.png">
@@ -13,220 +15,188 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Crown Hunt">
+<meta name="apple-mobile-web-app-title" content="Crown Streaks">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="apple-touch-startup-image" href="splash-1170x2532.png">
-<link rel="stylesheet" href="styles.css?v=1791133292">
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script></head>
+<style>
+  :root{
+    --bg:#0a0a0c; --panel:#121216; --panel2:#17171d;
+    --gold:#d4af37; --gold-hi:#ffd34d; --gold-dim:#8a6f24;
+    --text:#f2f0ea; --muted:#9a97a0; --line:#26262e;
+    --green:#3ddc74;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.5;
+  }
+  .wrap{max-width:660px;margin:0 auto;padding:0 16px 64px}
+  header.hero{text-align:center;padding:44px 12px 28px}
+  .crown{width:64px;height:52px;margin:0 auto 12px;display:block}
+  h1.brand{margin:0;font-size:2.1rem;letter-spacing:.14em;font-weight:800;color:var(--gold)}
+  p.tagline{margin:10px 0 0;font-size:1.02rem;color:var(--text);font-weight:600}
+  p.tagline span{color:var(--gold-hi)}
+  .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:1px}
+  section.card{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px 18px;margin:18px 0;
+  }
+  section.card h2{
+    margin:0 0 12px;font-size:.82rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--gold);font-weight:800;
+  }
+  ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+  ol.steps li{display:flex;gap:12px;align-items:flex-start}
+  .n{
+    flex:0 0 30px;height:30px;border-radius:50%;border:2px solid var(--gold);
+    color:var(--gold);font-weight:800;display:flex;align-items:center;justify-content:center;
+    font-size:.95rem;
+  }
+  .steps p{margin:2px 0 0;color:var(--muted);font-size:.95rem}
+  .steps p strong{color:var(--text)}
+  .pick{background:linear-gradient(180deg,#17171d,#101014);border:1px solid var(--gold-dim);text-align:center}
+  .pick .vs{font-size:1.7rem;font-weight:800;letter-spacing:.06em;margin:6px 0}
+  .pick .vs .sep{color:var(--gold);margin:0 10px;font-size:1.1rem;vertical-align:2px}
+  .pick .cutoff{color:var(--gold-hi);font-weight:700;margin:8px 0 2px}
+  .pick .sub{color:var(--muted);font-size:.9rem;margin:0}
+  .cta{
+    display:inline-block;margin-top:14px;padding:12px 26px;border-radius:999px;
+    background:var(--gold);color:#0a0a0c;font-weight:800;text-decoration:none;font-size:1rem;
+  }
+  table.board{width:100%;border-collapse:collapse;font-size:.95rem}
+  table.board th{
+    text-align:left;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:700;padding:8px 6px;border-bottom:1px solid var(--line);
+  }
+  table.board td{padding:10px 6px;border-bottom:1px solid var(--line)}
+  table.board tr:last-child td{border-bottom:0}
+  .rank{color:var(--gold);font-weight:800;width:44px}
+  .streak{font-weight:800;font-size:1.15rem;color:var(--gold-hi);text-align:right}
+  .long{color:var(--muted);text-align:right}
+  .demo-note{font-size:.82rem;color:var(--muted);margin:10px 0 0;font-style:italic}
+  .prizes{display:grid;gap:14px}
+  .prize{
+    display:flex;gap:14px;align-items:center;background:var(--panel2);
+    border:1px solid var(--line);border-radius:12px;padding:12px;
+  }
+  .prize.first{border-color:var(--gold)}
+  .prize img{width:84px;height:auto;border-radius:8px;flex:0 0 84px;background:#000}
+  .prize .place{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:800}
+  .prize .name{font-weight:700;margin:2px 0}
+  .prize .val{color:var(--muted);font-size:.88rem}
+  .budget{font-size:.85rem;color:var(--muted);margin:12px 0 0}
+  ul.rules{margin:0;padding:0;list-style:none;display:grid;gap:10px;font-size:.95rem;color:var(--muted)}
+  ul.rules li{padding-left:22px;position:relative}
+  ul.rules li::before{content:"";position:absolute;left:2px;top:9px;width:8px;height:8px;border-radius:50%;background:var(--gold)}
+  ul.rules strong{color:var(--text)}
+  footer{text-align:center;color:var(--muted);font-size:.85rem;padding:26px 0 10px}
+  footer a{color:var(--gold);text-decoration:none;font-weight:700}
+  .season{display:inline-block;margin-top:8px;padding:4px 14px;border:1px solid var(--gold-dim);border-radius:999px;color:var(--gold-hi);font-size:.78rem;letter-spacing:.14em;text-transform:uppercase}
+</style>
+</head>
 <body>
-<div id="splash" style="position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;background:#0a0a0c;transition:opacity .35s ease">
-<div style="font-size:4rem">👑</div>
-<div style="font-size:1.7rem;font-weight:800;color:#ffd34d">CROWN HUNT</div>
-<div style="font-size:.85rem;color:#9a97a0;letter-spacing:.12em">SEASON LEADERBOARD</div></div>
-<header class="appbar"><div><div class="appbar-title">👑 CROWN HUNT</div>
-<div class="appbar-sub" id="season-sub">Season 1</div></div>
-<a class="sub-btn" href="https://www.youtube.com/@CrownedCards?sub_confirmation=1" target="_blank" rel="noopener">Subscribe</a></header>
+<div class="wrap">
 
-<div class="views">
-<section class="view active" id="v-standings">
-<h2 class="view-title">🏆 TOP COLLECTORS</h2>
-<p class="view-sub">Ranked by total collection value · tap a player to open their binder</p>
-<div class="season-banner" id="season-banner"></div>
-<p class="updated-ts" id="updated-ts"></p>
-<button class="pack-cta" id="pack-cta" style="display:none" onclick="goRip()"></button>
-<p class="feed-label">🔥 FRESH PULLS</p>
-<div class="pull-feed" aria-label="Fresh pulls"><div class="pull-ticker" id="pull-ticker"></div></div>
-<p class="prize-race" id="prize-race"></p>
-<input type="search" id="standings-search" class="standings-search" placeholder="Search players…" autocomplete="off" aria-label="Search players">
-<div class="standings-scroll"><table class="standings-table"><tbody id="standings-body"></tbody></table></div>
-<div class="start-soon" id="empty-board" hidden>
-<p class="crown-big">👑</p>
-<p><strong>SEASON 1 — BE THE FIRST ON THE BOARD 👑</strong></p>
-<p class="board-caption">Comment on a Crown Hunt video to pull your first card — your binder goes up here.</p>
+  <header class="hero">
+    <svg class="crown" viewBox="0 0 64 52" aria-hidden="true">
+      <path d="M6 42 L2 12 L17 22 L32 4 L47 22 L62 12 L58 42 Z" fill="#d4af37"/>
+      <rect x="6" y="42" width="52" height="6" rx="2" fill="#d4af37"/>
+      <circle cx="32" cy="26" r="3.4" fill="#0a0a0c"/>
+      <circle cx="17" cy="30" r="2.4" fill="#0a0a0c"/>
+      <circle cx="47" cy="30" r="2.4" fill="#0a0a0c"/>
+    </svg>
+    <h1 class="brand">CROWN STREAKS</h1>
+    <p class="tagline">Pick winners. Build your streak. <span>Don't break it.</span></p>
+  </header>
+
+  <section class="card">
+    <h2><span class="live-dot"></span>How to play</h2>
+    <ol class="steps">
+      <li><div class="n">1</div><p><strong>Watch today's pick video</strong> on Crowned Cards.</p></li>
+      <li><div class="n">2</div><p><strong>Comment your one-word pick</strong> before kickoff. Example: <strong>LIONS</strong></p></li>
+      <li><div class="n">3</div><p><strong>Get it right, streak +1.</strong> Wrong pick or missed pick — back to zero.</p></li>
+    </ol>
+  </section>
+
+  <!-- ============================================================
+       TODAY'S PICK — EDIT DAILY
+       Change the teams and cutoff below, then push the page.
+       ============================================================ -->
+  <section class="card pick" id="todays-pick">
+    <h2>Today's pick</h2>
+    <div class="vs">LIONS<span class="sep">vs</span>PANTHERS</div>
+    <p class="sub">Sunday Night Football</p>
+    <p class="cutoff">Picks close at 7:20 PM CT kickoff. Late picks don't count.</p>
+    <a class="cta" href="https://www.youtube.com/@CrownedCards">Make your pick</a>
+  </section>
+
+  <section class="card">
+    <h2>Streak leaderboard</h2>
+    <table class="board" aria-label="Streak leaderboard">
+      <thead>
+        <tr><th>Rank</th><th>Player</th><th style="text-align:right">Streak</th><th style="text-align:right">Best</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="rank">1</td><td>@StreakKing</td><td class="streak">14</td><td class="long">14</td></tr>
+        <tr><td class="rank">2</td><td>@PickQueen</td><td class="streak">11</td><td class="long">12</td></tr>
+        <tr><td class="rank">3</td><td>@VaultHunter</td><td class="streak">9</td><td class="long">9</td></tr>
+        <tr><td class="rank">4</td><td>@GridironGuru</td><td class="streak">6</td><td class="long">10</td></tr>
+        <tr><td class="rank">5</td><td>@UnderdogU</td><td class="streak">4</td><td class="long">7</td></tr>
+        <tr><td class="rank">6</td><td>@RookieRick</td><td class="streak">2</td><td class="long">3</td></tr>
+      </tbody>
+    </table>
+    <p class="demo-note">Example standings — the real board lights up at launch. Ranked by longest active streak; ties broken by who got there first.</p>
+  </section>
+
+  <section class="card">
+    <h2>Monthly prizes — $100 cash</h2>
+    <div class="prizes">
+      <div class="prize first">
+        <div>
+          <div class="place">1st place</div>
+          <div class="name">$50 cash</div>
+          <div class="val">Longest streak of the month</div>
+        </div>
+      </div>
+      <div class="prize">
+        <div>
+          <div class="place">2nd place</div>
+          <div class="name">$30 cash</div>
+          <div class="val">Second-longest streak</div>
+        </div>
+      </div>
+      <div class="prize">
+        <div>
+          <div class="place">3rd place</div>
+          <div class="name">$20 cash</div>
+          <div class="val">Third-longest streak</div>
+        </div>
+      </div>
+    </div>
+    <p class="budget">Top 3 longest streaks each month win cash. Winners must be subscribed to Crowned Cards.</p>
+  </section>
+
+  <section class="card">
+    <h2>The rules</h2>
+    <ul class="rules">
+      <li><strong>One pick per day.</strong> Comment your one-word pick on the day's pick video.</li>
+      <li><strong>Before kickoff only.</strong> Comments during or after the game don't count.</li>
+      <li><strong>Correct pick:</strong> your streak goes up by 1.</li>
+      <li><strong>Wrong pick or missed pick:</strong> your streak resets to zero.</li>
+      <li><strong>Monthly winners:</strong> the 3 longest streaks achieved during the month win the cards above.</li>
+      <li><strong>Tiebreaker:</strong> earliest to reach the streak ranks higher.</li>
+      <li><strong>Free to play.</strong> No entry fee, ever. Winners must be subscribed.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <a href="https://www.youtube.com/@CrownedCards">Crowned Cards on YouTube</a>
+    <br><span class="season">Season 1</span>
+  </footer>
+
 </div>
-<div class="prize-strip" onclick="goPrizes()"><div class="prize-strip-head">🏆 SEASON 1 PRIZES · TOP 3 COLLECTORS WIN</div><div class="prize-strip-row"><div class="ps-item"><img loading="lazy" src="assets/prize-1st.jpg" alt="1ST place prize"><div><b>1ST</b><span>Bird ’90 Fleer PSA 10</span></div></div><div class="ps-item"><img loading="lazy" src="assets/prize-2nd.jpg" alt="2ND place prize"><div><b>2ND</b><span>Wemby Mosaic RC</span></div></div><div class="ps-item"><img loading="lazy" src="assets/prize-3rd.jpg" alt="3RD place prize"><div><b>3RD</b><span>Jeter ’93 Topps</span></div></div></div></div>
-
-<div class="how-strip">
-<div class="how-step"><div class="how-ico">💬</div><div class="how-t">Comment = card</div><div class="how-s">Every comment earns a card · up to Epic</div></div>
-<div class="how-arrow">→</div>
-<div class="how-step"><div class="how-ico">🏆</div><div class="how-t">Winning pick = better card</div><div class="how-s">Call it before the crown → full odds</div></div>
-<div class="how-arrow">→</div>
-<div class="how-step"><div class="how-ico">👑</div><div class="how-t">Top collector wins</div><div class="how-s">Highest value Oct 31</div></div>
-</div>
-<p class="how-note">Pick window closes at the crowning — late comments still get the instant card</p>
-<p class="how-video-link"><a href="how-to-play.mp4">▶ Watch: how to play in 60 seconds</a></p>
-
-</section>
-
-
-<section class="view" id="v-prizes">
-<h2 class="view-title">🎁 SEASON 1 PRIZES</h2>
-<p class="view-sub">Season 1 · Oct 3–31, 2026 — the Top 3 collectors win real cards</p>
-<div class="prize-grid">
-<div class="prize-item hero" data-place="1"><div class="prize-place">1ST PLACE</div><div><span class="prize-tag">TOP COLLECTOR</span></div><div class="prize-photo"><img loading="lazy" src="assets/prize-1st.jpg" alt="1ST PLACE prize: Larry Bird 1990 Fleer #8 · PSA 10"></div><p class="prize-name">Larry Bird 1990 Fleer #8 · PSA 10</p><p class="prize-value">~$100–$130 market</p></div>
-<div class="prize-row">
-<div class="prize-item" data-place="2"><div class="prize-place">2ND PLACE</div><div class="prize-photo"><img loading="lazy" src="assets/prize-2nd.jpg" alt="2ND PLACE prize: Victor Wembanyama Mosaic base rookie RC (raw)"></div><p class="prize-name">Victor Wembanyama Mosaic base rookie RC (raw)</p><p class="prize-value">~$10–$20 market</p></div>
-<div class="prize-item" data-place="3"><div class="prize-place">3RD PLACE</div><div class="prize-photo"><img loading="lazy" src="assets/prize-3rd.jpg" alt="3RD PLACE prize: Derek Jeter 1993 Topps #98 "1992 Draft Pick" (raw)"></div><p class="prize-name">Derek Jeter 1993 Topps #98 "1992 Draft Pick" (raw)</p><p class="prize-value">~$8–$20 market</p></div>
-</div>
-</div>
-<div class="howto-box" style="margin-top:1rem">
-<p><strong>🃏 Digital cards are game pieces only</strong>No cash value — they can't be redeemed, traded, or sold. The Season 1 prizes above are real sports cards awarded by the channel, separate from your digital binder.</p>
-<p><strong>⚖️ Tiebreaker</strong>Most Grails → most Legendaries → longest streak.</p>
-</div>
-</section>
-
-
-<section class="view" id="v-cards">
-<h2 class="view-title">🃏 ALL 15 DIGITAL CARDS</h2>
-<p class="view-sub">The full set players can pull · grouped by rarity</p>
-<div class="gallery" id="gallery"></div>
-</section>
-
-<section class="view" id="v-rules">
-<h2 class="view-title">📖 HOW IT WORKS</h2>
-<p class="view-sub">The real Season 1 rules</p>
-<div class="how-video"><video controls playsinline preload="metadata" src="how-to-play.mp4"></video></div>
-<div class="howto-box">
-<p class="elig-rule"><strong>✅ ELIGIBILITY</strong>You must be subscribed to <a href="https://www.youtube.com/@CrownedCards" target="_blank" rel="noopener">@CrownedCards</a> on YouTube to win. Season winners are verified before prizes ship — if a winner isn't subscribed, they're disqualified and the prize goes to the next top collector.</p>
-<p><strong>🎯 Set bonus</strong>Complete all 3 cards in a rarity set to bank a bonus equal to the set's total card value, rounded up. The bonus counts toward your collection value — once per set, duplicates don't pay twice.</p>
-<p><strong>💬 Comment = card</strong>Every comment earns an instant card: 70% Common / 22% Rare / 8% Epic — capped at Epic. One card per video per day.</p>
-<p><strong>🎯 🏆 Winning pick = better card</strong>Call the battle winner before the crowning and your comment card <strong>levels up</strong> to full pack odds: 60% / 25% / 10% / 4% / 1% — Legendary and Grail unlocked. No second card; your card gets better.</p>
-<p><strong>⏰ Pick window</strong>The pick window closes when the winner’s crowned — late comments still get the instant card, but can’t level up.</p>
-<p><strong>👑 Top Collector wins</strong>The leaderboard ranks by total collection value. Most Grails, then most Legendaries, then longest streak breaks ties.</p>
-<p><strong>🔥 Streaks boost odds</strong>Comment daily to build a streak — milestone streaks pay boosted-odds pulls with no commons.</p>
-<p><strong>🃏 Digital cards = game only</strong>No cash value. Season 1 (Oct 3–31) pays real card prizes to the Top Collector.</p>
-</div>
-</section>
-
-<section class="view" id="v-members">
-<h2 class="view-title">⭐ BONUS</h2>
-<p class="view-sub">One free pack every day — no sign-up needed</p>
-<div id="members-body"></div>
-</section>
-</div>
-
-<nav class="tabbar">
-<button class="active" onclick="show('v-standings',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1c0 2.5 2 4 4 4M17 6h3a1 1 0 0 1 1 1c0 2.5-2 4-4 4"/></svg></span>Standings</button>
-<button onclick="show('v-prizes',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4"/><path d="M5 12v8h14v-8M12 8v12M12 8c0-3-1.5-4.5-3-4.5S7.5 5.5 8.5 7C9.3 8.2 12 8 12 8zM12 8c0-3 1.5-4.5 3-4.5s1.5 2 .5 3.5C14.7 8.2 12 8 12 8z"/></svg></span>Prizes</button>
-<button onclick="show('v-cards',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9.5 12.5l1-2.2 1.5 1.4 1.5-1.4 1 2.2v2.5h-5V12.5z"/></svg></span>All Cards</button>
-<button onclick="show('v-rules',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6C10 4.5 7 4 4 4v14c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2zM12 6v14"/></svg></span>Rules</button>
-<button onclick="show('v-members',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6L3.2 9.4l6.1-.8L12 3z"/></svg></span>Bonus</button>
-</nav>
-
-<script>const FB_ENABLED=true;const FB_CONFIG={"apiKey": "AIzaSyDXpq0ymeJvmPllJamntMCKKLVpbsLuN_8", "authDomain": "crown-hunt-game.firebaseapp.com", "projectId": "crown-hunt-game", "storageBucket": "crown-hunt-game.firebasestorage.app", "messagingSenderId": "356136004141", "appId": "1:356136004141:web:cd4a4cc18974a0220b26a4"};</script>
-<script id="ch-data" type="application/json">{
- "updated_at": "2026-10-04T12:04:46-05:00",
- "season": {
-  "name": "Season 1",
-  "label": "October 2026",
-  "month": "2026-10",
-  "start": "2026-10-03",
-  "end": "2026-10-31"
- },
- "season_state": "live",
- "standings": [
-  {
-   "handle": "Anonymous",
-   "verified": false,
-   "collection_value": 20,
-   "set_bonuses": {},
-   "bonus_total": 0,
-   "today_value": 20,
-   "pulls_today": 1,
-   "grails": 0,
-   "legendaries": 0,
-   "streak": 1,
-   "days_active": 1,
-   "correct_picks": 0,
-   "collection": [
-    {
-     "pull_id": "uD0Lv6h7ytMBX6Dkf4hvz1MdW0S2_2026-10-04",
-     "rarity": "common",
-     "value": 20,
-     "variant_id": "common-2",
-     "variant_name": "Cole Drummond",
-     "art": "assets/digital-cards/common-2.png",
-     "date": "2026-10-04",
-     "source": "daily-pack",
-     "source_label": "🎁 Daily pack",
-     "leveled_from": null
-    }
-   ]
-  },
-  {
-   "handle": "@SuperWaterGun",
-   "verified": false,
-   "collection_value": 11,
-   "set_bonuses": {},
-   "bonus_total": 0,
-   "today_value": 11,
-   "pulls_today": 1,
-   "grails": 0,
-   "legendaries": 0,
-   "streak": 1,
-   "days_active": 1,
-   "correct_picks": 0,
-   "collection": [
-    {
-     "pull_id": "14J6EwhXPVZ0WIFpM7I0OwnMhS33_2026-10-04",
-     "rarity": "common",
-     "value": 11,
-     "variant_id": "common-3",
-     "variant_name": "Theo Marsh",
-     "art": "assets/digital-cards/common-3.png",
-     "date": "2026-10-04",
-     "source": "daily-pack",
-     "source_label": "🎁 Daily pack",
-     "leveled_from": null
-    }
-   ]
-  }
- ],
- "player_count": 2,
- "fresh_pulls": [
-  {
-   "handle": "Anonymous",
-   "verified": false,
-   "rarity": "common",
-   "card": "Cole Drummond",
-   "value": 20.76,
-   "date": "2026-10-04"
-  },
-  {
-   "handle": "@SuperWaterGun",
-   "verified": false,
-   "rarity": "common",
-   "card": "Theo Marsh",
-   "value": 11.3,
-   "date": "2026-10-04"
-  }
- ],
- "top_collector": null,
- "prize": {
-  "label": "🏆 Season 1 Crown Cards",
-  "prizes": [
-   {
-    "image": "assets/prize-1st.jpg",
-    "name": "1990 Fleer Larry Bird #8 · PSA 10",
-    "place": "1st"
-   },
-   {
-    "image": "assets/prize-2nd.jpg",
-    "name": "Victor Wembanyama Mosaic RC",
-    "place": "2nd"
-   },
-   {
-    "image": "assets/prize-3rd.jpg",
-    "name": "Derek Jeter 1993 Topps #98 Draft Pick",
-    "place": "3rd"
-   }
-  ]
- }
-}</script>
-<script src="app.js?v=1791133286"></script>
-</body></html>
+</body>
+</html>
