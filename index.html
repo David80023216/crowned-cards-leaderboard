@@ -248,12 +248,30 @@ box-shadow:0 0 8px rgba(255,211,77,.5)}
 .checklist-sec-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem}
 .checklist-sec-count{color:var(--muted);font-size:.75rem;font-weight:700}
 .checklist-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
-.checklist-slot{min-width:0}
-.checklist-art{position:relative;aspect-ratio:2/3;border-radius:8px;overflow:hidden;
-background:#0d0d10;border:1px solid var(--line)}
-.checklist-slot.missing .checklist-art{border-color:#33333c}
-.checklist-art img{width:100%;height:100%;object-fit:cover;display:block}
-.checklist-slot.missing .checklist-art img{filter:grayscale(85%) brightness(.65);opacity:.35}
+.checklist-slot{min-width:0;perspective:600px}
+/* Flippable checklist card: tap toggles .flipped on the inner container.
+   CRITICAL (pack-rip lesson): NEVER put a filter on .checklist-flip — a non-none
+   filter forces used transform-style to flat and kills the 3D flip. The missing-card
+   grayscale lives on the inner art img, not the flip container. */
+.checklist-flip{position:relative;aspect-ratio:2/3;transform-style:preserve-3d;transition:transform .55s ease;cursor:pointer}
+.checklist-flip.flipped{transform:rotateY(180deg)}
+.checklist-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+border-radius:8px;overflow:hidden;background:#0d0d10;border:1px solid var(--line)}
+.checklist-front img{width:100%;height:100%;object-fit:cover;display:block}
+.checklist-slot.missing .checklist-front{border-color:#33333c}
+.checklist-slot.missing .checklist-front img{filter:grayscale(85%) brightness(.65);opacity:.35}
+.checklist-back{transform:rotateY(180deg);display:flex;flex-direction:column;align-items:center;justify-content:center;
+gap:.16rem;padding:.35rem .22rem;text-align:center;border-color:rgba(201,162,39,.55);
+background:linear-gradient(160deg,#0a0a0c 0%,#251c07 55%,#0a0a0c 100%)}
+.cb-crown{width:24px;height:auto;opacity:.9;flex:none}
+.checklist-slot.missing .cb-crown{opacity:.3}
+.cb-value{color:var(--gold);font-weight:800;font-size:.8rem;font-variant-numeric:tabular-nums;line-height:1.15}
+.cb-pulled{color:var(--muted);font-size:.56rem}
+.cb-set{color:var(--muted);font-size:.53rem;letter-spacing:.05em}
+.cb-missing{color:var(--muted);opacity:.65;font-weight:800;font-size:.58rem;letter-spacing:.07em}
+.cb-odds{color:var(--gold);opacity:.9;font-size:.6rem;font-weight:700}
+.cb-range{color:var(--muted);font-size:.56rem}
+.checklist-back .rcount{font-size:.53rem;padding:.1rem .38rem;letter-spacing:.08em}
 .checklist-name{font-size:.68rem;color:var(--muted);text-align:center;padding:.25rem 0 0;
 white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .checklist-slot.missing .checklist-name{opacity:.5}
@@ -364,13 +382,51 @@ function rangeLabel(r){
   return shortMoney(R[0]) + '–' + shortMoney(R[1]);
 }
 
+/* Rarity odds as "N in M packs" (from the 60/25/10/4/1 spin odds). */
+function _gcd(a,b){ return b ? _gcd(b, a % b) : a; }
+function oddsLine(r){
+  const pct = {common:60, rare:25, epic:10, legendary:4, grail:1}[r] || 0;
+  const g = _gcd(pct, 100);
+  return (pct / g) + ' in ' + (100 / g) + ' packs';
+}
+
+/* Tap a checklist card: flip it over (stopPropagation so the standings row
+   doesn't collapse the binder). */
+function flipSlot(e, el){
+  if (e && e.stopPropagation) e.stopPropagation();
+  if (el && el.classList) el.classList.toggle('flipped');
+}
+
+const CB_CROWN = '<svg class="cb-crown" viewBox="0 0 36 27" aria-hidden="true"><path d="M3 21 L3 8 L10 13 L15 3 L18 12 L21 3 L26 13 L33 8 L33 21 Z" fill="#c9a227"/><rect x="3" y="22" width="30" height="3.4" rx="1.7" fill="#c9a227"/></svg>';
+
+/* Back face of a checklist card. Owned: big value + pull date + rarity pill +
+   set position. Missing: not-pulled notice + true odds + value range. */
+function slotBackHtml(id, r, has, val, date){
+  if (has) {
+    const cardNum = (id.split('-')[1] || '?');
+    return '<div class="checklist-face checklist-back">' + CB_CROWN +
+      '<div class="cb-value">' + money(val) + '</div>' +
+      '<div class="cb-pulled">Pulled ' + esc(date || 'Season 1') + '</div>' +
+      '<span class="rcount ' + r + '">' + RARITY_LABEL[r] + '</span>' +
+      '<div class="cb-set">' + RARITY_LABEL[r].toUpperCase() + ' SET &middot; card ' + cardNum + ' of 3</div></div>';
+  }
+  return '<div class="checklist-face checklist-back">' + CB_CROWN +
+    '<div class="cb-missing">NOT PULLED YET</div>' +
+    '<div class="cb-odds">' + oddsLine(r) + '</div>' +
+    '<div class="cb-range">Worth ' + rangeLabel(r) + '</div></div>';
+}
+
 /* Checklist binder: 5 rarity sections x 3 card slots. Owned cards render full
    color; missing cards are faint (grayscale + dim + low opacity) so the expanded
-   panel reads as a collection checklist, not a gallery. */
+   panel reads as a collection checklist, not a gallery. Each card is tappable:
+   tap flips it over to reveal details on the back (value/date for owned,
+   true odds for missing). */
 function checklistHtml(p) {
   const owned = {};
   const firstVal = {};
-  p.pulls.forEach(function(x){ owned[x.card] = true; if (!(x.card in firstVal)) firstVal[x.card] = x.value; });
+  const firstDate = {};
+  p.pulls.forEach(function(x){ owned[x.card] = true;
+    if (!(x.card in firstVal)) { firstVal[x.card] = x.value; firstDate[x.card] = x.date; } });
   const sb = p.set_bonuses || {};
   const bonusTotal = Object.keys(sb).reduce(function(s,k){ return s + (+sb[k] || 0); }, 0);
   let totalOwned = 0;
@@ -385,7 +441,9 @@ function checklistHtml(p) {
         ? '<div class="checklist-value">' + money(firstVal[id]) + '</div>'
         : '<div class="checklist-value">' + rangeLabel(r) + '</div>';
       return '<div class="checklist-slot' + (has ? '' : ' missing') + '">' +
-        '<div class="checklist-art"><img loading="lazy" src="' + (ART[id] || '') + '" alt="' + esc(c.name) + (has ? '' : ' (not owned)') + '"></div>' +
+        '<div class="checklist-flip" onclick="flipSlot(event,this)">' +
+        '<div class="checklist-face checklist-front"><img loading="lazy" src="' + (ART[id] || '') + '" alt="' + esc(c.name) + (has ? '' : ' (not owned)') + '"></div>' +
+        slotBackHtml(id, r, has, firstVal[id], firstDate[id]) + '</div>' +
         '<div class="checklist-name">' + esc(c.name) + '</div>' + valHtml + '</div>';
     }).join('');
     return '<div class="checklist-sec"><div class="checklist-sec-head">' +
