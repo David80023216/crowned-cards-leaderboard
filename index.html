@@ -611,9 +611,9 @@ function renderPackCta(){
   else
     el.innerHTML = '\u{1F381} RIP TODAY’S PACK<span class="pack-cta-sub">Free · one pack every day</span>';
 }
-/* Hero tap: jump to the Bonus tab; if the pack is ready, rip it immediately. */
+/* Hero tap: always jump to the Bonus tab (in ripped state it shows your pull);
+   if the pack is ready, rip it immediately. */
 function goRip(){
-  if (packUiState === 'ripped') return;
   const tabs = document.querySelectorAll('.tabbar button');
   if (tabs.length) show('v-members', tabs[tabs.length - 1]);
   if (packUiState === 'ready') setTimeout(function(){ doSpin(); }, 350);
