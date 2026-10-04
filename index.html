@@ -517,14 +517,27 @@ function toggleBinder(row) {
   row.after(tr); row.classList.add("open"); openRank = rank;
 }
 
+/* Back face of an All Cards gallery tile: true odds + value range + set position
+   (the gallery shows the full set, not owned/missing state). */
+function galleryBackHtml(c, r){
+  const cardNum = (c.id.split('-')[1] || '?');
+  return '<div class="checklist-face checklist-back">' + CB_CROWN +
+    '<div class="cb-odds">' + oddsLine(r) + '</div>' +
+    '<div class="cb-range">Worth ' + rangeLabel(r) + '</div>' +
+    '<span class="rcount ' + r + '">' + RARITY_LABEL[r] + '</span>' +
+    '<div class="cb-set">' + RARITY_LABEL[r].toUpperCase() + ' SET &middot; card ' + cardNum + ' of 3</div>' +
+    '<div class="cb-pulled">CROWNED CARDS &middot; DIGITAL &mdash; GAME ONLY</div></div>';
+}
+
 function renderGallery() {
   const order = ["grail","legendary","epic","rare","common"];
   const ranges = {common:"$5–$25",rare:"$50–$250",epic:"$250–$1K",legendary:"$1K–$10K",grail:"$10K–$100K"};
   document.getElementById("gallery").innerHTML = order.map(r =>
     Object.values(CARDS).filter(c=>c.rarity===r).map(c =>
-      `<div class="card-tile r-${r}"><div class="card-art-wrap">
-       <img class="card-art" loading="lazy" src="${ART[c.id]}" alt="${c.name}">
+      `<div class="card-tile r-${r}"><div class="checklist-flip" onclick="flipSlot(event,this)">
+       <div class="checklist-face checklist-front"><img class="card-art" loading="lazy" src="${ART[c.id]}" alt="${c.name}">
        <span class="rarity-badge">${r}</span></div>
+       ${galleryBackHtml(c, r)}</div>
        <div class="card-name">${c.name}</div>
        <div class="card-meta">${c.sport} · <span class="card-value">${ranges[r]}</span></div>
        <div class="card-date">CROWNED CARDS · DIGITAL — GAME ONLY</div></div>`
