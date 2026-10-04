@@ -30,7 +30,8 @@ padding:.3rem .25rem calc(.3rem + env(safe-area-inset-bottom,0px))}
 .tabbar button{background:none;border:0;color:var(--muted);display:flex;flex-direction:column;align-items:center;
 gap:2px;padding:.45rem 0;font-size:.62rem;font-weight:600;cursor:pointer;min-height:48px;font-family:inherit;position:relative}
 .tabbar button.active{color:var(--gold);text-shadow:0 0 12px rgba(255,211,77,.4)}
-.tab-ico{font-size:1.4rem;line-height:1.2}
+.tab-ico{line-height:1.2;display:flex;align-items:center;justify-content:center}
+.tab-ico svg{width:24px;height:24px;display:block}
 table{width:100%;border-collapse:collapse}
 .standings-table tbody tr{display:grid;grid-template-columns:2.5rem minmax(0,1fr) auto;
 grid-template-areas:"rank player value" "pills pills pills" "prize prize prize";column-gap:.55rem;align-items:center;
@@ -353,11 +354,11 @@ font-variant-numeric:tabular-nums}
 </div>
 
 <nav class="tabbar">
-<button class="active" onclick="show('v-standings',this)"><span class="tab-ico">🏆</span>Standings</button>
-<button onclick="show('v-prizes',this)"><span class="tab-ico">🎁</span>Prizes</button>
-<button onclick="show('v-cards',this)"><span class="tab-ico">🃏</span>All Cards</button>
-<button onclick="show('v-rules',this)"><span class="tab-ico">📖</span>Rules</button>
-<button onclick="show('v-members',this)"><span class="tab-ico">👥</span>Members</button>
+<button class="active" onclick="show('v-standings',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1c0 2.5 2 4 4 4M17 6h3a1 1 0 0 1 1 1c0 2.5-2 4-4 4"/></svg></span>Standings</button>
+<button onclick="show('v-prizes',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4"/><path d="M5 12v8h14v-8M12 8v12M12 8c0-3-1.5-4.5-3-4.5S7.5 5.5 8.5 7C9.3 8.2 12 8 12 8zM12 8c0-3 1.5-4.5 3-4.5s1.5 2 .5 3.5C14.7 8.2 12 8 12 8z"/></svg></span>Prizes</button>
+<button onclick="show('v-cards',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9.5 12.5l1-2.2 1.5 1.4 1.5-1.4 1 2.2v2.5h-5V12.5z"/></svg></span>All Cards</button>
+<button onclick="show('v-rules',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6C10 4.5 7 4 4 4v14c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2zM12 6v14"/></svg></span>Rules</button>
+<button onclick="show('v-members',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M17.5 14.7c2 .7 3.4 2.4 4 5.3"/></svg></span>Members</button>
 </nav>
 
 <script>const FB_ENABLED=true;const FB_CONFIG={"apiKey": "AIzaSyDXpq0ymeJvmPllJamntMCKKLVpbsLuN_8", "authDomain": "crown-hunt-game.firebaseapp.com", "projectId": "crown-hunt-game", "storageBucket": "crown-hunt-game.firebasestorage.app", "messagingSenderId": "356136004141", "appId": "1:356136004141:web:cd4a4cc18974a0220b26a4"};</script>
