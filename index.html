@@ -78,6 +78,12 @@
   .long{color:#aaff00;text-align:right;font-weight:700;animation:streakPulse 1.6s ease-in-out infinite}
   @keyframes streakPulse{0%,100%{opacity:1;text-shadow:0 0 8px rgba(170,255,0,.6)}50%{opacity:.65;text-shadow:0 0 2px rgba(170,255,0,.2)}}
   .demo-note{font-size:.82rem;color:var(--muted);margin:10px 0 0;font-style:italic}
+  .search{width:100%;margin:12px 0 8px;padding:10px 14px;font-size:.95rem;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);outline:none}
+  .search:focus{border-color:var(--gold-dim)}
+  .search::placeholder{color:var(--muted)}
+  .scroll-list{max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:4px}
+  .scroll-list table.board{margin:0}
+  .scroll-list tr:last-child td{border-bottom:0}
   .prizes{display:grid;gap:14px}
   .prize{
     display:flex;gap:14px;align-items:center;background:var(--panel2);
@@ -136,7 +142,7 @@
 
   <section class="card">
     <h2>Points leaderboard</h2>
-    <table class="board" aria-label="Points leaderboard">
+    <table class="board" aria-label="Top 5 players">
       <thead>
         <tr><th>Rank</th><th>Player</th><th style="text-align:right">Points</th><th style="text-align:right">Streak</th></tr>
       </thead>
@@ -146,9 +152,20 @@
         <tr><td class="rank">3</td><td>@VaultHunter</td><td class="streak">4,500</td><td class="long">9</td></tr>
         <tr><td class="rank">4</td><td>@GridironGuru</td><td class="streak">3,200</td><td class="long">10</td></tr>
         <tr><td class="rank">5</td><td>@UnderdogU</td><td class="streak">1,800</td><td class="long">7</td></tr>
-        <tr><td class="rank">6</td><td>@RookieRick</td><td class="streak">600</td><td class="long">3</td></tr>
       </tbody>
     </table>
+    <input type="search" id="playerSearch" class="search" placeholder="Search players..." aria-label="Search players">
+    <div class="scroll-list">
+      <table class="board" aria-label="More players">
+        <tbody id="restBody">
+          <tr><td class="rank">6</td><td>@RookieRick</td><td class="streak">600</td><td class="long">3</td></tr>
+          <tr><td class="rank">7</td><td>@PigskinPro</td><td class="streak">450</td><td class="long">4</td></tr>
+          <tr><td class="rank">8</td><td>@CrownChaser</td><td class="streak">300</td><td class="long">2</td></tr>
+          <tr><td class="rank">9</td><td>@EndzoneEddy</td><td class="streak">200</td><td class="long">2</td></tr>
+          <tr><td class="rank">10</td><td>@BlitzBabe</td><td class="streak">100</td><td class="long">1</td></tr>
+        </tbody>
+      </table>
+    </div>
     <p class="demo-note">Example standings — the real board lights up at launch. Ranked by total points; ties broken by longest streak.</p>
   </section>
 
@@ -200,5 +217,20 @@
   </footer>
 
 </div>
+<script>
+(function(){
+  var input=document.getElementById('playerSearch');
+  var body=document.getElementById('restBody');
+  if(!input||!body)return;
+  input.addEventListener('input',function(){
+    var q=input.value.trim().toLowerCase();
+    var rows=body.getElementsByTagName('tr');
+    for(var i=0;i<rows.length;i++){
+      var name=rows[i].getElementsByTagName('td')[1].textContent.toLowerCase();
+      rows[i].style.display=(!q||name.indexOf(q)!==-1)?'':'none';
+    }
+  });
+})();
+</script>
 </body>
 </html>
