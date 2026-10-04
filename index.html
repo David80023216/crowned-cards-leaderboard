@@ -35,7 +35,14 @@
   }
   .wrap{max-width:660px;margin:0 auto;padding:0 16px 118px}
   header.hero{text-align:center;padding:36px 12px 20px}
-  .crown{width:72px;height:72px;margin:0 auto 12px;display:block;border-radius:16px}
+  .crown{width:72px;height:72px;margin:0 auto 12px;display:block;border-radius:16px;animation:boltEnergy 2.2s ease-in-out infinite}
+  @keyframes boltEnergy{
+    0%,100%{filter:brightness(1) drop-shadow(0 0 6px rgba(255,215,0,.5))}
+    15%{filter:brightness(1.35) drop-shadow(0 0 14px rgba(255,215,0,.85))}
+    30%{filter:brightness(1) drop-shadow(0 0 6px rgba(255,215,0,.5))}
+    45%{filter:brightness(1.2) drop-shadow(0 0 10px rgba(255,215,0,.7))}
+    60%,100%{filter:brightness(1) drop-shadow(0 0 6px rgba(255,215,0,.5))}
+  }
   h1.brand{margin:0;font-size:2.1rem;letter-spacing:.14em;font-weight:800;color:var(--gold)}
   p.tagline{margin:10px 0 0;font-size:1.02rem;color:var(--text);font-weight:600}
   p.tagline span{color:var(--gold-hi)}
