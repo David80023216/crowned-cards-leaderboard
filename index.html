@@ -267,6 +267,7 @@ background:linear-gradient(160deg,#0a0a0c 0%,#251c07 55%,#0a0a0c 100%)}
 .checklist-slot.missing .cb-crown{opacity:.3}
 .cb-value{color:var(--gold);font-weight:800;font-size:.8rem;font-variant-numeric:tabular-nums;line-height:1.15}
 .cb-pulled{color:var(--muted);font-size:.56rem}
+.cb-galnote{color:var(--muted);font-size:.48rem;letter-spacing:.04em;line-height:1.2}
 .cb-set{color:var(--muted);font-size:.53rem;letter-spacing:.05em}
 .cb-missing{color:var(--muted);opacity:.65;font-weight:800;font-size:.58rem;letter-spacing:.07em}
 .cb-odds{color:var(--gold);opacity:.9;font-size:.6rem;font-weight:700}
@@ -526,7 +527,7 @@ function galleryBackHtml(c, r){
     '<div class="cb-range">Worth ' + rangeLabel(r) + '</div>' +
     '<span class="rcount ' + r + '">' + RARITY_LABEL[r] + '</span>' +
     '<div class="cb-set">' + RARITY_LABEL[r].toUpperCase() + ' SET &middot; card ' + cardNum + ' of 3</div>' +
-    '<div class="cb-pulled">CROWNED CARDS &middot; DIGITAL &mdash; GAME ONLY</div></div>';
+    '<div class="cb-pulled cb-galnote">CROWNED CARDS &middot; DIGITAL &mdash; GAME ONLY</div></div>';
 }
 
 function renderGallery() {
