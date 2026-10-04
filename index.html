@@ -33,8 +33,8 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased; line-height:1.5;
   }
-  .wrap{max-width:660px;margin:0 auto;padding:0 16px 64px}
-  header.hero{text-align:center;padding:44px 12px 28px}
+  .wrap{max-width:660px;margin:0 auto;padding:0 16px 118px}
+  header.hero{text-align:center;padding:36px 12px 20px}
   .crown{width:64px;height:52px;margin:0 auto 12px;display:block}
   h1.brand{margin:0;font-size:2.1rem;letter-spacing:.14em;font-weight:800;color:var(--gold)}
   p.tagline{margin:10px 0 0;font-size:1.02rem;color:var(--text);font-weight:600}
@@ -102,6 +102,28 @@
   footer{text-align:center;color:var(--muted);font-size:.85rem;padding:26px 0 10px}
   footer a{color:var(--gold);text-decoration:none;font-weight:700}
   .season{display:inline-block;margin-top:8px;padding:4px 14px;border:1px solid var(--gold-dim);border-radius:999px;color:var(--gold-hi);font-size:.78rem;letter-spacing:.14em;text-transform:uppercase}
+  /* ---- bottom tab bar ---- */
+  .tabbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;
+    background:rgba(10,10,12,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .tabbar-inner{
+    max-width:660px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);
+    padding:8px 4px;
+  }
+  .tabbtn{
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    background:none;border:0;color:var(--muted);cursor:pointer;
+    font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    font-family:inherit;padding:6px 0;
+  }
+  .tabbtn svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tabbtn.active{color:var(--gold-hi)}
+  .tabview{display:none}
+  .tabview.active{display:block;animation:tabIn .18s ease-out}
+  @keyframes tabIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
@@ -119,117 +141,176 @@
     <p class="tagline">Pick winners. Build your streak.<br><span>Don't break it.</span></p>
   </header>
 
-  <section class="card">
-    <h2><span class="live-dot"></span>How to play</h2>
-    <ol class="steps">
-      <li><div class="n">1</div><p><strong>Watch today's pick video</strong> on Crowned Cards.</p></li>
-      <li><div class="n">2</div><p><strong>Comment your one-word pick</strong> before kickoff. Example: <strong>LIONS</strong></p></li>
-      <li><div class="n">3</div><p><strong>Get it right, earn 100 × your streak.</strong> 1st in a row = 100 pts, 2nd = 200, 3rd = 300. Wrong or miss — streak resets, but you keep your points.</p></li>
-    </ol>
-  </section>
+  <!-- ============ TAB: PICK ============ -->
+  <div class="tabview" id="tab-pick" role="tabpanel" aria-label="Today's pick">
+    <!-- ============================================================
+         TODAY'S PICK — EDIT DAILY
+         Change the teams and cutoff below, then push the page.
+         ============================================================ -->
+    <section class="card pick" id="todays-pick">
+      <h2>Today's pick</h2>
+      <div class="vs">LIONS<span class="sep">vs</span>PANTHERS</div>
+      <p class="sub">Sunday Night Football</p>
+      <p class="cutoff">Picks close at 7:20 PM CT kickoff. Late picks don't count.</p>
+      <a class="cta" href="https://www.youtube.com/@CrownedCards">Make your pick</a>
+    </section>
+  </div>
 
-  <!-- ============================================================
-       TODAY'S PICK — EDIT DAILY
-       Change the teams and cutoff below, then push the page.
-       ============================================================ -->
-  <section class="card pick" id="todays-pick">
-    <h2>Today's pick</h2>
-    <div class="vs">LIONS<span class="sep">vs</span>PANTHERS</div>
-    <p class="sub">Sunday Night Football</p>
-    <p class="cutoff">Picks close at 7:20 PM CT kickoff. Late picks don't count.</p>
-    <a class="cta" href="https://www.youtube.com/@CrownedCards">Make your pick</a>
-  </section>
-
-  <section class="card">
-    <h2>Points leaderboard</h2>
-    <table class="board" aria-label="Top 5 players">
-      <thead>
-        <tr><th>Rank</th><th>Player</th><th style="text-align:right">Points</th><th style="text-align:right">Streak</th></tr>
-      </thead>
-      <tbody>
-        <tr><td class="rank">1</td><td>@StreakKing</td><td class="streak">10,500</td><td class="long">14</td></tr>
-        <tr><td class="rank">2</td><td>@PickQueen</td><td class="streak">7,800</td><td class="long">12</td></tr>
-        <tr><td class="rank">3</td><td>@VaultHunter</td><td class="streak">4,500</td><td class="long">9</td></tr>
-        <tr><td class="rank">4</td><td>@GridironGuru</td><td class="streak">3,200</td><td class="long">10</td></tr>
-        <tr><td class="rank">5</td><td>@UnderdogU</td><td class="streak">1,800</td><td class="long">7</td></tr>
-      </tbody>
-    </table>
-    <input type="search" id="playerSearch" class="search" placeholder="Search players..." aria-label="Search players">
-    <div class="scroll-list">
-      <table class="board" aria-label="More players">
-        <tbody id="restBody">
-          <tr><td class="rank">6</td><td>@RookieRick</td><td class="streak">600</td><td class="long">3</td></tr>
-          <tr><td class="rank">7</td><td>@PigskinPro</td><td class="streak">450</td><td class="long">4</td></tr>
-          <tr><td class="rank">8</td><td>@CrownChaser</td><td class="streak">300</td><td class="long">2</td></tr>
-          <tr><td class="rank">9</td><td>@EndzoneEddy</td><td class="streak">200</td><td class="long">2</td></tr>
-          <tr><td class="rank">10</td><td>@BlitzBabe</td><td class="streak">100</td><td class="long">1</td></tr>
+  <!-- ============ TAB: BOARD ============ -->
+  <div class="tabview" id="tab-board" role="tabpanel" aria-label="Points leaderboard">
+    <section class="card">
+      <h2>Points leaderboard</h2>
+      <table class="board" aria-label="Top 5 players">
+        <thead>
+          <tr><th>Rank</th><th>Player</th><th style="text-align:right">Points</th><th style="text-align:right">Streak</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="rank">1</td><td>@StreakKing</td><td class="streak">10,500</td><td class="long">14</td></tr>
+          <tr><td class="rank">2</td><td>@PickQueen</td><td class="streak">7,800</td><td class="long">12</td></tr>
+          <tr><td class="rank">3</td><td>@VaultHunter</td><td class="streak">4,500</td><td class="long">9</td></tr>
+          <tr><td class="rank">4</td><td>@GridironGuru</td><td class="streak">3,200</td><td class="long">10</td></tr>
+          <tr><td class="rank">5</td><td>@UnderdogU</td><td class="streak">1,800</td><td class="long">7</td></tr>
         </tbody>
       </table>
-    </div>
-    <p class="demo-note">Example standings — the real board lights up at launch. Ranked by total points; ties broken by longest streak.</p>
-  </section>
+      <input type="search" id="playerSearch" class="search" placeholder="Search players..." aria-label="Search players">
+      <div class="scroll-list">
+        <table class="board" aria-label="More players">
+          <tbody id="restBody">
+            <tr><td class="rank">6</td><td>@RookieRick</td><td class="streak">600</td><td class="long">3</td></tr>
+            <tr><td class="rank">7</td><td>@PigskinPro</td><td class="streak">450</td><td class="long">4</td></tr>
+            <tr><td class="rank">8</td><td>@CrownChaser</td><td class="streak">300</td><td class="long">2</td></tr>
+            <tr><td class="rank">9</td><td>@EndzoneEddy</td><td class="streak">200</td><td class="long">2</td></tr>
+            <tr><td class="rank">10</td><td>@BlitzBabe</td><td class="streak">100</td><td class="long">1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="demo-note">Example standings — the real board lights up at launch. Ranked by total points; ties broken by longest streak.</p>
+    </section>
+  </div>
 
-  <section class="card">
-    <h2>Monthly jackpot — $100 cash</h2>
-    <div class="prizes">
-      <div class="prize first">
-        <div>
-          <div class="place">1st place</div>
-          <div class="name">$50 cash</div>
-          <div class="val">Most points in the month</div>
+  <!-- ============ TAB: PRIZES ============ -->
+  <div class="tabview" id="tab-prizes" role="tabpanel" aria-label="Monthly jackpot">
+    <section class="card">
+      <h2>Monthly jackpot — $100 cash</h2>
+      <div class="prizes">
+        <div class="prize first">
+          <div>
+            <div class="place">1st place</div>
+            <div class="name">$50 cash</div>
+            <div class="val">Most points in the month</div>
+          </div>
+        </div>
+        <div class="prize">
+          <div>
+            <div class="place">2nd place</div>
+            <div class="name">$30 cash</div>
+            <div class="val">2nd-most points</div>
+          </div>
+        </div>
+        <div class="prize">
+          <div>
+            <div class="place">3rd place</div>
+            <div class="name">$20 cash</div>
+            <div class="val">3rd-most points</div>
+          </div>
         </div>
       </div>
-      <div class="prize">
-        <div>
-          <div class="place">2nd place</div>
-          <div class="name">$30 cash</div>
-          <div class="val">2nd-most points</div>
-        </div>
-      </div>
-      <div class="prize">
-        <div>
-          <div class="place">3rd place</div>
-          <div class="name">$20 cash</div>
-          <div class="val">3rd-most points</div>
-        </div>
-      </div>
-    </div>
-    <p class="budget">The pot pays out when the month hits <strong>500 total picks</strong>. Fall short and the $100 <strong>rolls over</strong> — the jackpot grows every month until it hits. Split 50/30/20. Winners must be subscribed to Crowned Cards.</p>
-  </section>
+      <p class="budget">The pot pays out when the month hits <strong>500 total picks</strong>. Fall short and the $100 <strong>rolls over</strong> — the jackpot grows every month until it hits. Split 50/30/20. Winners must be subscribed to Crowned Cards.</p>
+    </section>
+  </div>
 
-  <section class="card">
-    <h2>The rules</h2>
-    <ul class="rules">
-      <li><strong>One pick per day.</strong> Comment your one-word pick on the day's pick video.</li>
-      <li><strong>Before kickoff only.</strong> Comments during or after the game don't count.</li>
-      <li><strong>Correct pick:</strong> earn 100 × your current streak. 1st in a row = 100 pts, 2nd = 200, 3rd = 300, and so on.</li>
-      <li><strong>Wrong pick or missed video:</strong> your streak resets to zero, but you keep all banked points.</li>
-      <li><strong>Monthly winners:</strong> the 3 highest point totals win the jackpot (50/30/20 split).</li>
-      <li><strong>Jackpot threshold:</strong> 500 total picks unlocks the payout. Fall short and the $100 rolls over.</li>
-      <li><strong>Tiebreaker:</strong> longest streak ranks higher.</li>
-      <li><strong>Free to play.</strong> No entry fee, ever. Winners must be subscribed.</li>
-    </ul>
-  </section>
+  <!-- ============ TAB: RULES ============ -->
+  <div class="tabview" id="tab-rules" role="tabpanel" aria-label="Rules">
+    <section class="card">
+      <h2><span class="live-dot"></span>How to play</h2>
+      <ol class="steps">
+        <li><div class="n">1</div><p><strong>Watch today's pick video</strong> on Crowned Cards.</p></li>
+        <li><div class="n">2</div><p><strong>Comment your one-word pick</strong> before kickoff. Example: <strong>LIONS</strong></p></li>
+        <li><div class="n">3</div><p><strong>Get it right, earn 100 × your streak.</strong> 1st in a row = 100 pts, 2nd = 200, 3rd = 300. Wrong or miss — streak resets, but you keep your points.</p></li>
+      </ol>
+    </section>
 
-  <footer>
-    <a href="https://www.youtube.com/@CrownedCards">Crowned Cards on YouTube</a>
-    <br><span class="season">Season 1</span>
-  </footer>
+    <section class="card">
+      <h2>The rules</h2>
+      <ul class="rules">
+        <li><strong>One pick per day.</strong> Comment your one-word pick on the day's pick video.</li>
+        <li><strong>Before kickoff only.</strong> Comments during or after the game don't count.</li>
+        <li><strong>Correct pick:</strong> earn 100 × your current streak. 1st in a row = 100 pts, 2nd = 200, 3rd = 300, and so on.</li>
+        <li><strong>Wrong pick or missed video:</strong> your streak resets to zero, but you keep all banked points.</li>
+        <li><strong>Monthly winners:</strong> the 3 highest point totals win the jackpot (50/30/20 split).</li>
+        <li><strong>Jackpot threshold:</strong> 500 total picks unlocks the payout. Fall short and the $100 rolls over.</li>
+        <li><strong>Tiebreaker:</strong> longest streak ranks higher.</li>
+        <li><strong>Free to play.</strong> No entry fee, ever. Winners must be subscribed.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <a href="https://www.youtube.com/@CrownedCards">Crowned Cards on YouTube</a>
+      <br><span class="season">Season 1</span>
+    </footer>
+  </div>
 
 </div>
+
+<nav class="tabbar" role="tablist" aria-label="App sections">
+  <div class="tabbar-inner">
+    <button class="tabbtn" data-tab="pick" role="tab" aria-selected="true" aria-controls="tab-pick">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+      <span>Pick</span>
+    </button>
+    <button class="tabbtn" data-tab="board" role="tab" aria-selected="false" aria-controls="tab-board">
+      <svg viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4.5A2.5 2.5 0 0 0 7 11.5"/><path d="M17 6h2.5A2.5 2.5 0 0 1 17 11.5"/><path d="M12 14v3.5"/><path d="M9.5 21h5"/><path d="M10 17.5h4"/></svg>
+      <span>Board</span>
+    </button>
+    <button class="tabbtn" data-tab="prizes" role="tab" aria-selected="false" aria-controls="tab-prizes">
+      <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 8.5v7"/><path d="M14.6 10.1c-.6-.7-1.5-1-2.6-1-1.4 0-2.5.8-2.5 1.9 0 2.7 5 1.3 5 4 0 1.1-1.1 1.9-2.5 1.9-1.1 0-2-.4-2.6-1.1"/></svg>
+      <span>Prizes</span>
+    </button>
+    <button class="tabbtn" data-tab="rules" role="tab" aria-selected="false" aria-controls="tab-rules">
+      <svg viewBox="0 0 24 24"><path d="M9 6h13M9 12h13M9 18h13"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
+      <span>Rules</span>
+    </button>
+  </div>
+</nav>
+
 <script>
 (function(){
+  // ---- tab switching ----
+  var views={
+    pick:document.getElementById('tab-pick'),
+    board:document.getElementById('tab-board'),
+    prizes:document.getElementById('tab-prizes'),
+    rules:document.getElementById('tab-rules')
+  };
+  var btns=document.querySelectorAll('.tabbtn');
+  function showTab(name){
+    if(!views[name])return;
+    for(var k in views){views[k].classList.toggle('active',k===name);}
+    btns.forEach(function(b){
+      var on=b.dataset.tab===name;
+      b.classList.toggle('active',on);
+      b.setAttribute('aria-selected',on?'true':'false');
+    });
+    window.scrollTo(0,0);
+  }
+  btns.forEach(function(b){
+    b.addEventListener('click',function(){showTab(b.dataset.tab);});
+  });
+  showTab('pick');
+
+  // ---- player search filter (Board tab) ----
   var input=document.getElementById('playerSearch');
   var body=document.getElementById('restBody');
-  if(!input||!body)return;
-  input.addEventListener('input',function(){
-    var q=input.value.trim().toLowerCase();
-    var rows=body.getElementsByTagName('tr');
-    for(var i=0;i<rows.length;i++){
-      var name=rows[i].getElementsByTagName('td')[1].textContent.toLowerCase();
-      rows[i].style.display=(!q||name.indexOf(q)!==-1)?'':'none';
-    }
-  });
+  if(input&&body){
+    input.addEventListener('input',function(){
+      var q=input.value.trim().toLowerCase();
+      var rows=body.getElementsByTagName('tr');
+      for(var i=0;i<rows.length;i++){
+        var name=rows[i].getElementsByTagName('td')[1].textContent.toLowerCase();
+        rows[i].style.display=(!q||name.indexOf(q)!==-1)?'':'none';
+      }
+    });
+  }
 })();
 </script>
 </body>
