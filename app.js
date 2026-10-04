@@ -1154,7 +1154,8 @@ renderMembers();
    the latest entries, newest first). */
 function renderPullFeed(){
   const tick = document.getElementById('pull-ticker'); if (!tick) return;
-  const pulls = (typeof CH_DATA !== 'undefined' && CH_DATA.fresh_pulls) || [];
+  const pulls = ((typeof CH_DATA !== 'undefined' && CH_DATA.fresh_pulls) || [])
+    .filter(function(it){ return it.handle && it.handle !== 'Anonymous'; }); /* ticker shows named pulls only */
   const chip = function(it){
     return '<span class="pull-chip"><span class="pc-handle">' + esc(it.handle) + '</span>' +
       '<span class="pc-r ' + esc(it.rarity) + '">' + esc((it.rarity || '').toUpperCase()) + '</span>' +
@@ -1178,7 +1179,8 @@ function paintLiveTicker(){
   const tick = document.getElementById('pull-ticker'); if (!tick) return;
   const half = liveRawPulls.map(function(v){
     const uid = v.uid || '';
-    const h = v.displayName || tickerHandles[uid] || 'Anonymous';
+    const h = v.displayName || tickerHandles[uid] || '';
+    if (!h || h === 'Anonymous') return ''; /* ticker shows named pulls only */
     return '<span class="pull-chip"><span class="pc-handle">' + esc(h) + '</span>' +
       '<span class="pc-r ' + esc(v.rarity) + '">' + esc((v.rarity || '').toUpperCase()) + '</span>' +
       '<span>' + esc(v.cardName || '') + '</span><span class="pc-v">' + money(+v.value || 0) + '</span></span>';
