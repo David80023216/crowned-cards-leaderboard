@@ -169,7 +169,7 @@ a.spin-btn.sub-btn{display:inline-block;text-decoration:none;line-height:2.7;pad
 .pack-stage{position:relative;width:min(300px,80vw);margin:.9rem auto .4rem;perspective:900px}
 .pack{position:relative;z-index:2;aspect-ratio:3/4.15;border-radius:10px;overflow:hidden;cursor:pointer;
 background:linear-gradient(135deg,#171204 0%,#3a2c0d 22%,#8a6d1f 40%,#ffd34d 50%,#8a6d1f 60%,#3a2c0d 78%,#171204 100%);
-box-shadow:0 0 30px rgba(255,211,77,.25),inset 0 0 46px rgba(0,0,0,.55)}
+box-shadow:0 0 30px rgba(255,211,77,.25),inset 0 0 46px rgba(0,0,0,.55);transition:opacity .6s ease,transform .6s ease}
 .pack::before{content:"";position:absolute;inset:0;z-index:1;background:repeating-linear-gradient(115deg,rgba(255,255,255,.07) 0 2px,transparent 2px 7px);pointer-events:none}
 .pack-opening{position:absolute;top:0;left:10%;right:10%;height:34px;z-index:2;background:#000;border-radius:0 0 14px 14px;
 box-shadow:inset 0 5px 10px #000,0 0 0 2px #3a2c0d;opacity:0;transition:opacity .3s}
@@ -194,7 +194,7 @@ background:linear-gradient(90deg,transparent,#fff8dc 20%,#fff8dc 80%,transparent
 .rip-flash{position:absolute;inset:-40px;z-index:6;opacity:0;pointer-events:none;
 background:radial-gradient(circle,rgba(255,225,130,.95) 0%,rgba(255,211,77,.45) 35%,transparent 70%)}
 .ripped-card-glow{position:absolute;left:50%;top:58%;width:64%;aspect-ratio:2/3;z-index:1;transform:translateX(-50%);
-transition:top .7s cubic-bezier(.2,.7,.3,1)}
+transition:top .7s cubic-bezier(.2,.7,.3,1),transform .7s ease,width .7s ease}
 .ripped-card{position:absolute;left:50%;top:0;width:100%;height:100%;transform:translateX(-50%);
 transform-style:preserve-3d;transition:transform .9s ease}
 .card-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:8px;overflow:hidden;
@@ -214,7 +214,9 @@ display:flex;align-items:center;justify-content:center}
 #pack-stage.tearing .pack-opening{opacity:1}
 #pack-stage.ripped .ripped-card-glow{top:-6%}
 #pack-stage.flipped .ripped-card{transform:translateX(-50%) rotateY(180deg);z-index:3}
-#pack-stage.no-anim .ripped-card,#pack-stage.no-anim .ripped-card-glow,#pack-stage.no-anim .pack-topstrip,#pack-stage.no-anim .pack-opening{transition:none}
+#pack-stage.revealed .pack{opacity:0;transform:scale(.92);pointer-events:none}
+#pack-stage.revealed .ripped-card-glow{top:50%;transform:translate(-50%,-50%);width:72%}
+#pack-stage.no-anim .pack,#pack-stage.no-anim .ripped-card,#pack-stage.no-anim .ripped-card-glow,#pack-stage.no-anim .pack-topstrip,#pack-stage.no-anim .pack-opening{transition:none}
 .glow-r-common{filter:drop-shadow(0 0 16px rgba(154,160,168,.85))}
 .glow-r-rare{filter:drop-shadow(0 0 16px rgba(77,159,255,.9))}
 .glow-r-epic{filter:drop-shadow(0 0 16px rgba(180,77,255,.9))}
@@ -510,7 +512,8 @@ function skipRip(){
   finishRip(ripData, ripSd);
 }
 /* Rip sequence (~2.9s, skippable): shake -> tear (strip flies, gold burst) ->
-   card slides out face-down -> flips to reveal with rarity glow. */
+   card slides out face-down -> flips to reveal with rarity glow ->
+   card glides to center hero as the torn pack fades. */
 function startRip(data, sd){
   ripData = data; ripSd = sd || null;
   var img = document.getElementById('ripped-img');
@@ -523,19 +526,20 @@ function startRip(data, sd){
   if (glow) { glow.style.display = ''; glow.className = 'ripped-card-glow glow-r-' + data.rarity; }
   if (card) { card.className = 'ripped-card'; }
   if (st) {
-    st.classList.remove('tearing','ripped','flipped','no-anim');
+    st.classList.remove('tearing','ripped','flipped','revealed','no-anim');
     st.classList.remove('shaking'); void st.offsetWidth; st.classList.add('shaking'); /* re-trigger */
     st.onclick = skipRip;
   }
   ripLater(function(){ stageCls(['tearing'], ['shaking']); }, 620);
   ripLater(function(){ stageCls(['ripped']); }, 1150);
   ripLater(function(){ stageCls(['flipped']); }, 1950);
+  ripLater(function(){ stageCls(['revealed']); }, 2600); /* card glides to center hero, torn pack fades */
   ripLater(function(){ finishRip(data, sd); }, 2950);
 }
 function finishRip(data, sd){
   clearRipTimers();
   var st = packStage();
-  if (st) { st.classList.add('tearing','ripped','flipped'); st.onclick = null; }
+  if (st) { st.classList.add('tearing','ripped','flipped','revealed'); st.onclick = null; }
   var glow = document.getElementById('ripped-card-glow');
   if (glow) {
     glow.style.display = '';
@@ -858,7 +862,7 @@ async function checkTodaySpin() {
       /* already ripped today: show the torn pack + revealed card, no animation */
       const d = snap.data();
       const st = packStage();
-      if (st) { st.classList.add('no-anim','tearing','ripped','flipped'); st.onclick = null; }
+      if (st) { st.classList.add('no-anim','tearing','ripped','flipped','revealed'); st.onclick = null; }
       const glow = document.getElementById('ripped-card-glow');
       if (glow) {
         glow.style.display = '';
