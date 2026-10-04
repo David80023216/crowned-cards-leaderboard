@@ -362,3 +362,6 @@ font-variant-numeric:tabular-nums}
 .share-nets{display:flex;flex-wrap:wrap;gap:.4rem;margin:.2rem 0 .6rem}
 .net-btn{background:#141419;border:1px solid var(--line);border-radius:999px;color:var(--gold);font-size:.75rem;font-weight:600;padding:.4rem .8rem;cursor:pointer}
 .net-btn:active{transform:scale(.96)}
+
+/* Verified subscriber badge — gold check next to the handle */
+.verified-badge{display:inline-block;color:var(--gold);font-size:.82em;font-weight:700;margin-left:.32em;vertical-align:baseline;cursor:default}

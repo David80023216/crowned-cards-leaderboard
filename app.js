@@ -112,7 +112,7 @@ function checklistHtml(p) {
   }).join('');
   const pct = Math.round(totalOwned / 15 * 100);
   return '<div class="binder-panel checklist">' +
-    '<div class="checklist-head"><span class="checklist-title">' + esc(p.handle) + ' checklist</span>' +
+    '<div class="checklist-head"><span class="checklist-title">' + esc(p.handle) + vBadge(p) + ' checklist</span>' +
     '<span class="checklist-count">' + totalOwned + ' of 15 cards · <span class="checklist-worth">Worth ' + money(p.value) + '</span></span></div>' +
     '<div class="checklist-bar"><div class="checklist-fill" style="width:' + pct + '%"></div></div>' +
     (bonusTotal > 0 ? '<div class="checklist-bonus-note">Includes ' + money(bonusTotal) + ' in set bonuses</div>' : '') +
@@ -151,7 +151,7 @@ function renderStandings() {
   el.innerHTML = ordered.length ? ordered.map(p => `
     <tr class="${p.rank===1?'leader':''}" data-rank="${p.rank}">
       <td class="rank">${p.rank===1?'👑':p.rank}</td>
-      <td class="player">${p.handle}</td>
+      <td class="player">${p.handle}${vBadge(p)}</td>
       <td class="value">${money(p.value)}</td>
       <td class="pills">${p.grails?('<span class="rcount grail">'+p.grails+' Grail</span>'):(p.legendaries?('<span class="rcount legendary">'+p.legendaries+' Legendary</span>'):'')}<span class="streak-wrap">${p.streak>1?('<span class="streak-pill">'+p.streak+'-day streak</span>'):('<span class="streak-1">day '+p.streak+'</span>')}</span></td>${prizeChip(p)}
     </tr>`).join("") :
@@ -159,7 +159,7 @@ function renderStandings() {
   el.querySelectorAll("tr").forEach(row => row.addEventListener("click", function(){ if (!row.classList.contains("no-results")) toggleBinder(row); }));
   const top3 = all.slice(0, 3);
   const race = document.getElementById("prize-race");
-  if (race) race.innerHTML = `🏆 <b>As it stands:</b> ` + top3.map((p,i) => `${p.handle} takes ${PRIZE_SHORT[i].takes}`).join(" · ");
+  if (race) race.innerHTML = `🏆 <b>As it stands:</b> ` + top3.map((p,i) => `${p.handle}${vBadge(p)} takes ${PRIZE_SHORT[i].takes}`).join(" · ");
   renderSeasonBanner();
   renderPullFeed();
   renderPackCta();
@@ -353,6 +353,8 @@ function renderPullFeed(){
 }
 // ================= Firebase auth + Members daily spin =================
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+/* Gold verified-subscriber check shown next to a handle when p.verified is true. */
+function vBadge(p){ return (p && p.verified) ? '<span class="verified-badge" title="Verified subscriber">&#10003;</span>' : ''; }
 
 let fbUser = null;
 let db = null;
@@ -1157,7 +1159,7 @@ function renderPullFeed(){
   const pulls = ((typeof CH_DATA !== 'undefined' && CH_DATA.fresh_pulls) || [])
     .filter(function(it){ return it.handle && it.handle !== 'Anonymous'; }); /* ticker shows named pulls only */
   const chip = function(it){
-    return '<span class="pull-chip"><span class="pc-handle">' + esc(it.handle) + '</span>' +
+    return '<span class="pull-chip"><span class="pc-handle">' + esc(it.handle) + vBadge(it) + '</span>' +
       '<span class="pc-r ' + esc(it.rarity) + '">' + esc((it.rarity || '').toUpperCase()) + '</span>' +
       '<span>' + esc(it.card || '') + '</span><span class="pc-v">' + money(+it.value || 0) + '</span></span>';
   };
@@ -1175,13 +1177,15 @@ function renderPullFeed(){
 var tickerUnsub = null;
 var liveRawPulls = [];
 var tickerHandles = {};  /* uid -> displayName cache */
+var tickerVerified = {}; /* uid -> verifiedSubscriber cache */
 function paintLiveTicker(){
   const tick = document.getElementById('pull-ticker'); if (!tick) return;
   const half = liveRawPulls.map(function(v){
     const uid = v.uid || '';
     const h = v.displayName || tickerHandles[uid] || '';
     if (!h || h === 'Anonymous') return ''; /* ticker shows named pulls only */
-    return '<span class="pull-chip"><span class="pc-handle">' + esc(h) + '</span>' +
+    const vb = tickerVerified[uid] ? '<span class="verified-badge" title="Verified subscriber">&#10003;</span>' : '';
+    return '<span class="pull-chip"><span class="pc-handle">' + esc(h) + vb + '</span>' +
       '<span class="pc-r ' + esc(v.rarity) + '">' + esc((v.rarity || '').toUpperCase()) + '</span>' +
       '<span>' + esc(v.cardName || '') + '</span><span class="pc-v">' + money(+v.value || 0) + '</span></span>';
   }).join('') || '<span class="pull-chip"><span>No pulls yet — be the first on the board</span></span>';
@@ -1197,15 +1201,17 @@ function startLiveTicker(){
           const v = d.data() || {};
           raws.push(v);
           const uid = v.uid || '';
-          if (!v.displayName && uid && !(uid in tickerHandles)) need.push(uid);
+          if (uid && (!(uid in tickerHandles) || !(uid in tickerVerified))) need.push(uid);
         });
         liveRawPulls = raws;
         paintLiveTicker();
         need.forEach(function(uid){
           db.collection('players').doc(uid).get().then(function(s){
-            tickerHandles[uid] = (s.exists && s.data().displayName) || '';
+            const fd = (s.exists && s.data()) || {};
+            tickerHandles[uid] = fd.displayName || '';
+            tickerVerified[uid] = !!fd.verifiedSubscriber;
             paintLiveTicker();
-          }).catch(function(){ tickerHandles[uid] = ''; paintLiveTicker(); });
+          }).catch(function(){ tickerHandles[uid] = ''; tickerVerified[uid] = false; paintLiveTicker(); });
         });
       }, function(){ /* listener denied/offline — baked feed stays */ });
   } catch(e){ /* baked feed stays */ }
