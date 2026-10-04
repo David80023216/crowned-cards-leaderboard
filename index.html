@@ -284,7 +284,7 @@ box-shadow:0 0 8px rgba(255,211,77,.5)}
 .checklist-sec-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem}
 .checklist-sec-count{color:var(--muted);font-size:.75rem;font-weight:700}
 .checklist-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
-.checklist-slot{min-width:0;perspective:600px}
+.checklist-slot{min-width:0;perspective:600px;position:relative}
 /* Flippable checklist card: tap toggles .flipped on the inner container.
    CRITICAL (pack-rip lesson): NEVER put a filter on .checklist-flip — a non-none
    filter forces used transform-style to flat and kills the 3D flip. The missing-card
@@ -466,7 +466,7 @@ function checklistHtml(p) {
   const owned = {};
   const firstVal = {};
   const firstDate = {};
-  p.pulls.forEach(function(x){ owned[x.card] = true;
+  p.pulls.forEach(function(x){ owned[x.card] = (owned[x.card] || 0) + 1;
     if (!(x.card in firstVal)) { firstVal[x.card] = x.value; firstDate[x.card] = x.date; } });
   const sb = p.set_bonuses || {};
   const bonusTotal = Object.keys(sb).reduce(function(s,k){ return s + (+sb[k] || 0); }, 0);
@@ -481,7 +481,9 @@ function checklistHtml(p) {
       const valHtml = has
         ? '<div class="checklist-value">' + money(firstVal[id]) + '</div>'
         : '<div class="checklist-value">' + rangeLabel(r) + '</div>';
-      return '<div class="checklist-slot' + (has ? '' : ' missing') + '">' +
+      const dupN = owned[id] || 0;
+      const dupBadge = dupN > 1 ? '<span class="dup-badge">×' + dupN + '</span>' : '';
+      return '<div class="checklist-slot' + (has ? '' : ' missing') + '">' + dupBadge +
         '<div class="checklist-flip" onclick="flipSlot(event,this)">' +
         '<div class="checklist-face checklist-front"><img loading="lazy" src="' + (ART[id] || '') + '" alt="' + esc(c.name) + (has ? '' : ' (not owned)') + '"></div>' +
         slotBackHtml(id, r, has, firstVal[id], firstDate[id]) + '</div>' +
