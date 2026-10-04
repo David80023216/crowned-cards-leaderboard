@@ -365,3 +365,17 @@ font-variant-numeric:tabular-nums}
 
 /* Verified subscriber badge — gold check next to the handle */
 .verified-badge{display:inline-block;color:var(--gold);font-size:.82em;font-weight:700;margin-left:.32em;vertical-align:baseline;cursor:default}
+
+/* YOU highlight on the standings + welcome line */
+#standings-body tr.is-you{background:rgba(255,211,77,.08);box-shadow:inset 3px 0 0 var(--gold)}
+.you-pill{display:inline-block;background:var(--gold);color:#111;font-size:.62rem;font-weight:800;border-radius:999px;padding:.1rem .45rem;margin-left:.4em;vertical-align:middle;letter-spacing:.04em}
+.welcome-line{color:var(--gold);font-weight:700;margin:.1rem 0 .3rem;font-size:.95rem}
+
+/* Handle ownership claim (comment-code verification) */
+.claim-box{margin-top:.7rem;border:1px dashed var(--line);border-radius:.6rem;padding:.7rem .8rem;background:#101014}
+.claim-code{font-family:ui-monospace,monospace;font-size:1.3rem;font-weight:800;color:var(--gold);letter-spacing:.12em;background:#0a0a0c;border:1px solid var(--line);border-radius:.4rem;padding:.35rem .8rem;display:inline-block;margin:.3rem 0}
+.claim-btn{background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:999px;font-weight:700;font-size:.8rem;padding:.45rem 1rem;cursor:pointer;margin-top:.4rem}
+.claim-btn:active{transform:scale(.96)}
+.claim-btn:disabled{opacity:.5;cursor:default}
+.claim-ok{color:#7ddf9a;font-weight:700}
+.claim-err{color:#ff9a9a;font-size:.82rem}

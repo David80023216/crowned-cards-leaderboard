@@ -148,13 +148,17 @@ function renderStandings() {
   const all = [...PLAYERS].sort((a,b) => a.rank - b.rank);
   const q = standingsQuery.trim().toLowerCase();
   const ordered = q ? all.filter(p => (p.handle || '').toLowerCase().includes(q)) : all;
-  el.innerHTML = ordered.length ? ordered.map(p => `
-    <tr class="${p.rank===1?'leader':''}" data-rank="${p.rank}">
+  const youH = normH(handleSaved);
+  el.innerHTML = ordered.length ? ordered.map(p => {
+    const isYou = !!(youH && normH(p.handle) === youH);
+    const badgeP = (p.verified || (isYou && myVerified)) ? { verified: true } : p;
+    return `
+    <tr class="${p.rank===1?'leader':''}${isYou?' is-you':''}" data-rank="${p.rank}">
       <td class="rank">${p.rank===1?'👑':p.rank}</td>
-      <td class="player">${p.handle}${vBadge(p)}</td>
+      <td class="player">${p.handle}${vBadge(badgeP)}${isYou?'<span class="you-pill">YOU</span>':''}</td>
       <td class="value">${money(p.value)}</td>
       <td class="pills">${p.grails?('<span class="rcount grail">'+p.grails+' Grail</span>'):(p.legendaries?('<span class="rcount legendary">'+p.legendaries+' Legendary</span>'):'')}<span class="streak-wrap">${p.streak>1?('<span class="streak-pill">'+p.streak+'-day streak</span>'):('<span class="streak-1">day '+p.streak+'</span>')}</span></td>${prizeChip(p)}
-    </tr>`).join("") :
+    </tr>`; }).join("") :
     `<tr class="no-results"><td colspan="6" style="text-align:center;color:var(--muted);padding:1.4rem;cursor:default">No players match &ldquo;${esc(standingsQuery.trim())}&rdquo;.</td></tr>`;
   el.querySelectorAll("tr").forEach(row => row.addEventListener("click", function(){ if (!row.classList.contains("no-results")) toggleBinder(row); }));
   const top3 = all.slice(0, 3);
@@ -355,6 +359,8 @@ function renderPullFeed(){
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 /* Gold verified-subscriber check shown next to a handle when p.verified is true. */
 function vBadge(p){ return (p && p.verified) ? '<span class="verified-badge" title="Verified subscriber">&#10003;</span>' : ''; }
+/* Normalized handle compare for the YOU highlight. */
+function normH(h){ return String(h || '').trim().replace(/^@/, '').toLowerCase(); }
 
 let fbUser = null;
 let db = null;
@@ -538,6 +544,7 @@ function computeSpin(uid, date) {
    disabled. There is NO fallback to Google login. */
 let authFailed = false;  /* anonymous sign-in failed */
 let handleSaved = '';    /* YouTube @handle from players/{uid}.displayName */
+try { handleSaved = localStorage.getItem('ch_handle') || ''; } catch(e){} /* fast path: remembered from this device */
 
 function initFirebase() {
   if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') return false;
@@ -609,7 +616,8 @@ async function saveHandle() {
   try {
     await db.collection('players').doc(fbUser.uid).set({ displayName: v }, { merge: true });
     handleSaved = v;
-    showErr('Saved ✓', true);
+    try { localStorage.setItem('ch_handle', v); } catch(e){}
+    showErr('Saved ✓ — welcome, ' + v, true);
   } catch(e) { showErr('Could not save — check your connection and try again.'); }
 }
 
@@ -618,6 +626,112 @@ function bindHandle() {
   if (b) b.onclick = saveHandle;
   const inp = document.getElementById('yt-handle');
   if (inp) inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') saveHandle(); });
+}
+
+/* ============ Handle ownership claim (comment-code verification) ============
+   A player proves they own their @handle by commenting a one-time code on
+   any Crowned Cards video. The page checks the public YouTube API for the
+   code + author match, then stamps players/{uid}.handleVerified. This is
+   real proof of handle ownership (only the handle owner can comment as
+   that handle). Prize-time Studio verification remains the backstop. */
+const YT_API_KEY = 'AIzaSyByNQpzkzoRhy7w-rBsbyOesKVBWEQPKC4'; /* public browser key: YouTube Data API v3 only, HTTP-referrer locked to our domain */
+const YT_CHANNEL_ID = 'UCMb6weNm3HQjiMuCMiVb_qQ';
+let myVerified = false;   /* this browser's player has a verified handle */
+let claimCode = '';       /* pending claim code, empty when not claiming */
+
+function claimCodeGen() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s = 'CROWN-';
+  for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+function claimBoxHtml() {
+  if (!handleSaved) return '';
+  if (myVerified) return '<p class="claim-ok">✓ Handle verified — your badge is on the board.</p>';
+  if (claimCode) {
+    return '<div class="claim-box"><p><strong>Prove you own ' + esc(handleSaved) + ':</strong></p>' +
+      '<p>Comment this code on our <a href="https://www.youtube.com/@CrownedCards" target="_blank" rel="noopener">latest video</a>, then tap check.</p>' +
+      '<div class="claim-code">' + esc(claimCode) + '</div><br>' +
+      '<button class="claim-btn" id="claim-check">I commented it — check now</button> ' +
+      '<button class="claim-btn" id="claim-cancel" style="border-color:var(--line);color:var(--muted)">Cancel</button>' +
+      '<p class="claim-err" id="claim-err" style="display:none"></p></div>';
+  }
+  return '<button class="claim-btn" id="claim-start">Verify you own ' + esc(handleSaved) + '</button><div id="claim-slot"></div>';
+}
+
+function refreshClaimBox() {
+  const el = document.getElementById('claim-box');
+  if (el) { el.innerHTML = claimBoxHtml(); bindClaimBox(); }
+}
+
+function bindClaimBox() {
+  const s = document.getElementById('claim-start');
+  if (s) s.onclick = function(){ claimCode = claimCodeGen(); refreshClaimBox(); };
+  const c = document.getElementById('claim-cancel');
+  if (c) c.onclick = function(){ claimCode = ''; refreshClaimBox(); };
+  const k = document.getElementById('claim-check');
+  if (k) k.onclick = checkClaim;
+}
+
+async function ytApi(path) {
+  const sep = path.indexOf('?') === -1 ? '?' : '&';
+  const r = await fetch('https://www.googleapis.com/youtube/v3/' + path + sep + 'key=' + YT_API_KEY);
+  if (!r.ok) throw new Error('yt' + r.status);
+  return r.json();
+}
+
+/* Scan recent videos for the claim code commented by the claimed handle.
+   Returns {videoId, commentId} on match, {mismatch:true} if the code was
+   found under a different name, null if not found. */
+async function findClaimComment(code, handle) {
+  const want = normH(handle);
+  const ch = await ytApi('channels?part=contentDetails&id=' + YT_CHANNEL_ID);
+  const pl = (((ch.items || [])[0] || {}).contentDetails || {}).relatedPlaylists || {};
+  if (!pl.uploads) return null;
+  const vids = await ytApi('playlistItems?part=contentDetails&playlistId=' + pl.uploads + '&maxResults=5');
+  let mismatch = false;
+  for (const it of ((vids.items) || [])) {
+    const vid = ((it.contentDetails) || {}).videoId;
+    if (!vid) continue;
+    let ct;
+    try { ct = await ytApi('commentThreads?part=snippet&videoId=' + vid + '&order=time&maxResults=100&textFormat=plainText'); }
+    catch(e){ continue; } /* comments disabled etc. — try next video */
+    for (const t of (ct.items || [])) {
+      const top = ((t.snippet) || {}).topLevelComment || {};
+      const sn = top.snippet || {};
+      if ((sn.textDisplay || '').toUpperCase().indexOf(code) === -1) continue;
+      if (normH(sn.authorDisplayName) === want) return { videoId: vid, commentId: top.id };
+      mismatch = true;
+    }
+  }
+  return mismatch ? { mismatch: true } : null;
+}
+
+async function checkClaim() {
+  const err = document.getElementById('claim-err');
+  const btn = document.getElementById('claim-check');
+  const showErr = function(m){ if (err) { err.textContent = m; err.style.display = ''; } };
+  if (!db || !fbUser || !claimCode || !handleSaved) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  if (err) err.style.display = 'none';
+  let found;
+  try { found = await findClaimComment(claimCode, handleSaved); }
+  catch(e) { showErr('Could not reach YouTube — check your connection and try again.'); if (btn) { btn.disabled = false; btn.textContent = 'I commented it — check now'; } return; }
+  if (!found) { showErr('Code not found yet — make sure the comment is posted (not a reply), then try again.'); if (btn) { btn.disabled = false; btn.textContent = 'I commented it — check now'; } return; }
+  if (found.mismatch) { showErr('Found the code, but under a different name — comment from the ' + handleSaved + ' account.'); if (btn) { btn.disabled = false; btn.textContent = 'I commented it — check now'; } return; }
+  try {
+    await db.collection('players').doc(fbUser.uid).set({
+      handleVerified: true,
+      handleVerifyProof: { code: claimCode, videoId: found.videoId, commentId: found.commentId, checkedAt: firebase.firestore.FieldValue.serverTimestamp() }
+    }, { merge: true });
+  } catch(e) { showErr('Could not save verification — try again.'); if (btn) { btn.disabled = false; btn.textContent = 'I commented it — check now'; } return; }
+  myVerified = true;
+  claimCode = '';
+  tickerVerified[fbUser.uid] = true;   /* ticker picks up the badge now */
+  paintLiveTicker();
+  renderStandings();                    /* YOU row gets the badge now */
+  refreshClaimBox();
 }
 
 /* ============ Referrals: share link -> free Rare Pack for the referrer ====
@@ -885,6 +999,7 @@ function readSubAttestation(u) {
     const d = (snap && snap.exists) ? snap.data() : null;
     subUnlocked = !!(d && d.subscribed === true);
     if (d && typeof d.displayName === 'string' && d.displayName) handleSaved = d.displayName;
+    myVerified = !!(d && (d.handleVerified || d.verifiedSubscriber));
     subCheckDone = true; renderMembers();
   }).catch(function(){ subUnlocked = false; subCheckDone = true; renderMembers(); });
 }
@@ -907,7 +1022,7 @@ async function unlockSpin() {
     if (btn) { btn.disabled = false; btn.textContent = "I'm subscribed — unlock my spin"; }
     return; /* write failed — stay locked */
   }
-  if (dn) handleSaved = dn;
+  if (dn) { handleSaved = dn; try { localStorage.setItem('ch_handle', dn); } catch(e){} }
   subUnlocked = true; subCheckDone = true; renderMembers();
 }
 
@@ -963,8 +1078,11 @@ function renderMembers() {
   }
   const handleNudge = handleSaved ? '' :
     '<p class="handle-nudge">⚠️ Add your @handle below so we can find you if you win.</p>';
+  const welcomeLine = handleSaved ?
+    '<p class="welcome-line">Welcome back, ' + esc(handleSaved) + ' 👑</p>' : '';
   body.innerHTML =
     '<div class="spin-panel"><div class="spin-title-row"><h3 class="spin-title"><svg class="spin-crown" viewBox="0 0 36 27" width="30" height="22" aria-hidden="true"><path d="M3 21 L3 8 L10 13 L15 3 L18 12 L21 3 L26 13 L33 8 L33 21 Z" fill="#ffd34d"/><rect x="3" y="22" width="30" height="3.4" rx="1.7" fill="#ffd34d"/></svg>DAILY PACK</h3><button class="sound-toggle" id="sound-toggle" aria-label="Toggle pack sounds"></button></div>' +
+    welcomeLine +
     '<p class="view-sub">One free pack every day — tap the pack to rip it open</p>' +
     packStageHtml() +
     '<button class="spin-btn" id="spin-btn">RIP THE PACK</button>' +
@@ -974,6 +1092,7 @@ function renderMembers() {
     '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a></div>' +
     handleNudge + '</div>' +
     handleHtml() +
+    '<div id="claim-box">' + claimBoxHtml() + '</div>' +
     '<div class="spins-history"><h3 class="view-title" style="font-size:1.05rem">🃏 YOUR PACKS</h3>' +
     '<p class="view-sub" id="spins-total"></p><div id="spins-list"></div></div>' +
     '<div id="ref-panel">' + refPanelHtml() + '</div>';
@@ -985,6 +1104,7 @@ function renderMembers() {
   const st0 = document.getElementById('pack-stage');
   if (st0) st0.onclick = function(){ doSpin(); }; /* tapping the pack rips it too */
   bindHandle();
+  bindClaimBox();
   bindShare();
   checkTodaySpin();
   loadSpins();
@@ -1209,7 +1329,7 @@ function startLiveTicker(){
           db.collection('players').doc(uid).get().then(function(s){
             const fd = (s.exists && s.data()) || {};
             tickerHandles[uid] = fd.displayName || '';
-            tickerVerified[uid] = !!fd.verifiedSubscriber;
+            tickerVerified[uid] = !!(fd.verifiedSubscriber || fd.handleVerified);
             paintLiveTicker();
           }).catch(function(){ tickerHandles[uid] = ''; tickerVerified[uid] = false; paintLiveTicker(); });
         });
