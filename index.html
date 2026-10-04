@@ -347,7 +347,7 @@ font-variant-numeric:tabular-nums}
 </section>
 
 <section class="view" id="v-members">
-<h2 class="view-title">👥 MEMBERS</h2>
+<h2 class="view-title">⭐ BONUS</h2>
 <p class="view-sub">One free pack every day — no sign-up needed</p>
 <div id="members-body"></div>
 </section>
@@ -358,7 +358,7 @@ font-variant-numeric:tabular-nums}
 <button onclick="show('v-prizes',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4"/><path d="M5 12v8h14v-8M12 8v12M12 8c0-3-1.5-4.5-3-4.5S7.5 5.5 8.5 7C9.3 8.2 12 8 12 8zM12 8c0-3 1.5-4.5 3-4.5s1.5 2 .5 3.5C14.7 8.2 12 8 12 8z"/></svg></span>Prizes</button>
 <button onclick="show('v-cards',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9.5 12.5l1-2.2 1.5 1.4 1.5-1.4 1 2.2v2.5h-5V12.5z"/></svg></span>All Cards</button>
 <button onclick="show('v-rules',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6C10 4.5 7 4 4 4v14c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2zM12 6v14"/></svg></span>Rules</button>
-<button onclick="show('v-members',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M17.5 14.7c2 .7 3.4 2.4 4 5.3"/></svg></span>Members</button>
+<button onclick="show('v-members',this)"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6L3.2 9.4l6.1-.8L12 3z"/></svg></span>Bonus</button>
 </nav>
 
 <script>const FB_ENABLED=true;const FB_CONFIG={"apiKey": "AIzaSyDXpq0ymeJvmPllJamntMCKKLVpbsLuN_8", "authDomain": "crown-hunt-game.firebaseapp.com", "projectId": "crown-hunt-game", "storageBucket": "crown-hunt-game.firebasestorage.app", "messagingSenderId": "356136004141", "appId": "1:356136004141:web:cd4a4cc18974a0220b26a4"};</script>
@@ -841,7 +841,7 @@ async function unlockSpin() {
 
 function membersLockedHtml(msg) {
   return '<div class="locked-panel"><div class="locked-ico">🔒</div>' +
-    '<h3 class="locked-title">MEMBERS ONLY</h3><p class="view-sub">' + msg + '</p></div>';
+    '<h3 class="locked-title">BONUS</h3><p class="view-sub">' + msg + '</p></div>';
 }
 
 function renderMembers() {
@@ -849,7 +849,7 @@ function renderMembers() {
   if (!body) return;
   stopCountdown();
   if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') {
-    body.innerHTML = membersLockedHtml('The members section is launching soon. Check back after the next update.');
+    body.innerHTML = membersLockedHtml('The bonus section is launching soon. Check back after the next update.');
     return;
   }
   if (authFailed) {
