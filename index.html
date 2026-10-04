@@ -90,9 +90,8 @@
   .search{width:100%;margin:12px 0 8px;padding:10px 14px;font-size:.95rem;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);outline:none}
   .search:focus{border-color:var(--gold-dim)}
   .search::placeholder{color:var(--muted)}
-  .scroll-list{max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:4px}
-  .scroll-list table.board{margin:0}
-  .scroll-list tr:last-child td{border-bottom:0}
+  table.board thead th{position:sticky;top:0;background:var(--panel);z-index:2}
+  #tab-board .card{padding-bottom:14px}
   .prizes{display:grid;gap:14px}
   .prize{
     display:flex;gap:14px;align-items:center;background:var(--panel2);
@@ -155,7 +154,7 @@
       <div class="vs">LIONS<span class="sep">vs</span>PANTHERS</div>
       <p class="sub">Sunday Night Football</p>
       <p class="cutoff">Picks close at 7:20 PM CT kickoff. Late picks don't count.</p>
-      <a class="cta" href="https://www.youtube.com/@CrownedCards">Make your pick</a>
+      <a class="cta" href="https://www.youtube.com/shorts/2r2EIsBNmGo">Make your pick</a>
       <p class="sub-required"><a href="https://www.youtube.com/@CrownedCards?sub_confirmation=1">Subscribe</a> to enter — you must be subscribed to win.</p>
     </section>
   </div>
@@ -164,31 +163,16 @@
   <div class="tabview" id="tab-board" role="tabpanel" aria-label="Points leaderboard">
     <section class="card">
       <h2>Points leaderboard</h2>
-      <table class="board" aria-label="Top 5 players">
+      <input type="search" id="playerSearch" class="search" placeholder="Search players..." aria-label="Search players">
+      <table class="board" aria-label="Points leaderboard">
         <thead>
           <tr><th>Rank</th><th>Player</th><th style="text-align:right">Points</th><th style="text-align:right">Streak</th></tr>
         </thead>
-        <tbody>
-          <tr><td class="rank">1</td><td>@StreakKing</td><td class="streak">10,500</td><td class="long">14</td></tr>
-          <tr><td class="rank">2</td><td>@PickQueen</td><td class="streak">7,800</td><td class="long">12</td></tr>
-          <tr><td class="rank">3</td><td>@VaultHunter</td><td class="streak">4,500</td><td class="long">9</td></tr>
-          <tr><td class="rank">4</td><td>@GridironGuru</td><td class="streak">3,200</td><td class="long">10</td></tr>
-          <tr><td class="rank">5</td><td>@UnderdogU</td><td class="streak">1,800</td><td class="long">7</td></tr>
+        <tbody id="boardBody">
+          <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px 6px">No players yet — be the first to make your pick!</td></tr>
         </tbody>
       </table>
-      <input type="search" id="playerSearch" class="search" placeholder="Search players..." aria-label="Search players">
-      <div class="scroll-list">
-        <table class="board" aria-label="More players">
-          <tbody id="restBody">
-            <tr><td class="rank">6</td><td>@RookieRick</td><td class="streak">600</td><td class="long">3</td></tr>
-            <tr><td class="rank">7</td><td>@PigskinPro</td><td class="streak">450</td><td class="long">4</td></tr>
-            <tr><td class="rank">8</td><td>@CrownChaser</td><td class="streak">300</td><td class="long">2</td></tr>
-            <tr><td class="rank">9</td><td>@EndzoneEddy</td><td class="streak">200</td><td class="long">2</td></tr>
-            <tr><td class="rank">10</td><td>@BlitzBabe</td><td class="streak">100</td><td class="long">1</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="demo-note">Example standings — the real board lights up at launch. Ranked by total points; ties broken by longest streak.</p>
+      <p class="demo-note">Live standings — updated Oct 04, 08:31 PM UTC. Ranked by total points; ties broken by longest streak.</p>
     </section>
   </div>
 
@@ -304,13 +288,15 @@
 
   // ---- player search filter (Board tab) ----
   var input=document.getElementById('playerSearch');
-  var body=document.getElementById('restBody');
+  var body=document.getElementById('boardBody');
   if(input&&body){
     input.addEventListener('input',function(){
       var q=input.value.trim().toLowerCase();
       var rows=body.getElementsByTagName('tr');
       for(var i=0;i<rows.length;i++){
-        var name=rows[i].getElementsByTagName('td')[1].textContent.toLowerCase();
+        var cells=rows[i].getElementsByTagName('td');
+        if(cells.length<2)continue;
+        var name=cells[1].textContent.toLowerCase();
         rows[i].style.display=(!q||name.indexOf(q)!==-1)?'':'none';
       }
     });
