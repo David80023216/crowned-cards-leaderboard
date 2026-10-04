@@ -99,6 +99,8 @@ letter-spacing:.08em;text-transform:uppercase;padding:.15rem .45rem;border-radiu
 .howto-box p{margin:0;padding:.7rem 0;border-bottom:1px solid var(--line);font-size:.95rem}
 .howto-box p:last-child{border-bottom:0}
 .howto-box strong{display:block;color:var(--gold);margin-bottom:.15rem}
+.howto-box .elig-rule{border-left:3px solid var(--gold);background:rgba(255,211,77,.07);margin:0 -1.2rem;padding:.7rem 1.2rem .7rem calc(1.2rem - 3px);border-radius:0 10px 10px 0}
+.howto-box .elig-rule a{color:var(--gold);font-weight:700}
 #splash.hide{opacity:0;visibility:hidden;pointer-events:none}
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem}
 .dup-badge{position:absolute;top:.35rem;right:.35rem;z-index:2;font-size:.72rem;font-weight:800;
@@ -153,6 +155,7 @@ font-weight:800;font-size:1.05rem;letter-spacing:.06em;padding:.7rem 2.6rem;marg
 cursor:pointer;font-family:inherit}
 .spin-btn:disabled{opacity:.45;cursor:default}
 a.spin-btn.sub-btn{display:inline-block;text-decoration:none;line-height:2.7;padding:0 1.6rem;margin:.4rem 0 .2rem}
+.sub-note{margin:1.1rem auto 0;max-width:420px;padding:.9rem 1rem;border:1px solid rgba(255,211,77,.35);border-radius:12px;background:rgba(255,211,77,.06)}
 .spin-countdown{color:var(--muted);font-size:.85rem;min-height:1.3em}
 .spin-result{margin-top:.8rem}
 .spin-result .card-art-wrap{max-width:180px;margin:0 auto;border-radius:10px;overflow:hidden}
@@ -212,6 +215,7 @@ a.spin-btn.sub-btn{display:inline-block;text-decoration:none;line-height:2.7;pad
 <h2 class="view-title">📖 HOW IT WORKS</h2>
 <p class="view-sub">Demo of the real Season 1 rules</p>
 <div class="howto-box">
+<p class="elig-rule"><strong>✅ ELIGIBILITY</strong>You must be subscribed to <a href="https://www.youtube.com/@CrownedCards" target="_blank" rel="noopener">@CrownedCards</a> on YouTube to win. Season winners are verified before prizes ship — if a winner isn't subscribed, they're disqualified and the prize goes to the next top collector.</p>
 <p><strong>💬 Every comment gets a card</strong>Any comment on a Crown Hunt video pulls a Fan card (common, $5–$25). One card per video per day.</p>
 <p><strong>🎯 Call the winner, rip a better pack</strong>A correct battle prediction upgrades that video's pull to a full-odds pack: 60% Common / 25% Rare / 10% Epic / 4% Legendary / 1% Grail.</p>
 <p><strong>👑 Top Collector wins</strong>The leaderboard ranks by total collection value. Most Grails, then most Legendaries, then longest streak breaks ties.</p>
@@ -455,114 +459,40 @@ function initFirebase() {
     firebase.initializeApp(FB_CONFIG);
     db = firebase.firestore();
     firebase.auth().onAuthStateChanged(function(u){
-      fbUser = u; renderAuthArea();
-      if (!u) { subState = 'unknown'; renderMembers(); return; }
-      /* Returning session: no fresh OAuth token, so trust a fresh cache read.
-         A live re-check needs a token → the verify panel triggers doAuthFlow().
-         Skip when a fresh sign-in flow is already driving the state. */
-      if (authFlowActive) return;
-      subState = 'checking'; renderMembers();
-      readSubCache(u.uid).then(function(s){ subState = s; subCheckFailed = false; renderMembers(); });
+      fbUser = u; renderAuthArea(); renderMembers();
     });
     return true;
   } catch(e){ return false; }
 }
 
-/* ============ YouTube subscription gating (@CrownedCards) ============
-   New game rule: you must be subscribed to @CrownedCards to spin.
-   Client-side velvet rope in front of the wheel; Firestore rules + the
-   deterministic-roll audit remain the anti-cheat backstop. */
-const YT_CHANNEL_ID = 'UCMb6weNm3HQjiMuCMiVb_qQ';
+/* ============ Members: plain Google sign-in, no YouTube scope ============
+   Strategy call 2026-10-03 (Shawn): the game's main goal is gaining YouTube
+   subscribers, and the YouTube permission scope triggered Google's
+   "unverified app" warning right at the conversion moment. Sign-in is now
+   frictionless (openid/email/profile only) — no subscription API check.
+   The subscriber RULE stands: winners are manually verified in YouTube
+   Studio before prizes ship (the Trophy Hunt model). */
 const YT_SUBSCRIBE_URL = 'https://www.youtube.com/@CrownedCards?sub_confirmation=1';
-const SUB_CACHE_MS = 7 * 24 * 3600 * 1000;
-/* subState: 'unknown' | 'checking' | 'verified' | 'unsubscribed' | 'denied' | 'verify' */
-let subState = 'unknown';
-let subCheckFailed = false; /* last check hit 'error' → show the connection copy */
-let authFlowActive = false; /* fresh sign-in in flight; restore read must not clobber it */
 
-async function checkYtSubscription(accessToken) {
-  const headers = { 'Authorization': 'Bearer ' + accessToken };
+/* Display-name cache only — no subscription attestation, since we no longer
+   verify subscriptions client-side. The rules allow this field subset. */
+function writeDisplayName(u) {
+  if (!db || !u) return;
   try {
-    let r = await fetch('https://www.googleapis.com/youtube/v3/subscriptions?part=id&mine=true&forChannelId=' + YT_CHANNEL_ID, { headers: headers });
-    if (r.ok) {
-      const j = await r.json();
-      if (j && j.pageInfo && j.pageInfo.totalResults > 0) return true;
-    } else if (r.status !== 404) {
-      return 'error'; /* non-404 HTTP failure — never default to true */
-    }
-    /* 0 results, or 404 = Google account has no YouTube channel (can't be
-       subscribed). A channel owner can't subscribe to their own channel, so
-       check the own-channel id as well — the owner always passes. */
-    r = await fetch('https://www.googleapis.com/youtube/v3/channels?part=id&mine=true', { headers: headers });
-    if (!r.ok) return r.status === 404 ? false : 'error';
-    const j = await r.json();
-    const items = (j && j.items) || [];
-    for (const it of items) if (it && it.id === YT_CHANNEL_ID) return true;
-    return false;
-  } catch (e) {
-    return 'error'; /* network failure — never default to true */
-  }
+    db.collection('players').doc(u.uid).set({ displayName: u.displayName || '' }, { merge: true });
+  } catch (e) { /* must not block the wheel */ }
 }
 
-async function writeSubCache(uid, result, displayName) {
-  if (!db || result === 'error') return; /* a failed check must not poison the cache */
-  try {
-    await db.collection('players').doc(uid).set({
-      subscribed: result === true,
-      subCheckedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      displayName: displayName || ''
-    }, { merge: true });
-  } catch (e) { /* cache write failure must not block the wheel */ }
-}
-
-async function readSubCache(uid) {
-  if (!db) return 'verify';
-  try {
-    const doc = await db.collection('players').doc(uid).get();
-    if (doc && doc.exists) {
-      const d = doc.data() || {};
-      const ts = d.subCheckedAt;
-      const age = (ts && typeof ts.toMillis === 'function') ? (Date.now() - ts.toMillis()) : Infinity;
-      if (d.subscribed === true && age < SUB_CACHE_MS) return 'verified';
-      if (d.subscribed === false) return 'unsubscribed';
-    }
-  } catch (e) { /* fall through to verify */ }
-  return 'verify'; /* no doc, stale cache, or read failure → ask to verify */
-}
-
-function applySubResult(result) {
-  subCheckFailed = (result === 'error');
-  subState = (result === true) ? 'verified' : (result === false ? 'unsubscribed' : 'verify');
-  renderMembers();
-}
-
-/* Full auth flow: Google sign-in WITH the YouTube read-only scope, then a live
-   subscription check, then the cache write. Used for first sign-in AND every
-   "check again / verify" re-auth (signInWithPopup is silent when the session
-   is fresh). */
+/* Frictionless auth flow: plain Google sign-in (openid/email/profile only).
+   No YouTube scope → no "Google hasn't verified this app" warning. */
 async function doAuthFlow() {
   if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') return;
-  authFlowActive = true;
-  subState = 'checking'; subCheckFailed = false;
-  renderMembers();
   const provider = new firebase.auth.GoogleAuthProvider();
-  provider.addScope('https://www.googleapis.com/auth/youtube.readonly');
-  let result = null;
   try {
-    result = await firebase.auth().signInWithPopup(provider);
-  } catch (e) { /* popup closed / blocked → fall through to verify below */ }
-  const u = result && result.user;
-  if (!u) { authFlowActive = false; subState = 'verify'; subCheckFailed = true; renderMembers(); return; }
-  fbUser = u; renderAuthArea();
-  const token = result.credential && result.credential.accessToken;
-  if (!token) {
-    /* user denied the YouTube permission at the Google consent screen */
-    authFlowActive = false; subState = 'denied'; renderMembers(); return;
-  }
-  const check = await checkYtSubscription(token);
-  await writeSubCache(u.uid, check, u.displayName);
-  authFlowActive = false;
-  applySubResult(check);
+    const result = await firebase.auth().signInWithPopup(provider);
+    const u = result && result.user;
+    if (u) { fbUser = u; renderAuthArea(); writeDisplayName(u); renderMembers(); }
+  } catch (e) { /* popup closed or blocked — user stays signed out */ }
 }
 
 function signIn() { doAuthFlow(); }
@@ -596,36 +526,6 @@ function membersLockedHtml(msg, showBtn) {
     (showBtn ? '<button class="spin-btn" id="m-signin-btn">Sign in with Google</button>' : '') + '</div>';
 }
 
-function subGateHtml() {
-  const head = '<div class="member-head"><span class="member-hello">👋 ' + esc((fbUser.displayName || 'Member').split(' ')[0]) + '</span>' +
-    '<button class="link-btn" id="m-signout">Sign out</button></div>';
-  if (subState === 'checking') {
-    return head + '<div class="locked-panel"><div class="locked-ico">🔒</div>' +
-      '<h3 class="locked-title">CHECKING SUBSCRIPTION</h3><p class="view-sub">Confirming your @CrownedCards subscription…</p></div>';
-  }
-  if (subState === 'denied') {
-    return head + '<div class="locked-panel"><div class="locked-ico">🔔</div>' +
-      '<h3 class="locked-title">SUBSCRIBE TO SPIN</h3>' +
-      '<p class="view-sub">The daily spin is for @CrownedCards subscribers.<br>We need YouTube read-only access to confirm your subscription.</p>' +
-      '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a><br>' +
-      '<button class="link-btn" id="sub-recheck-btn">Try again</button></div>';
-  }
-  if (subState === 'unsubscribed') {
-    return head + '<div class="locked-panel"><div class="locked-ico">🔔</div>' +
-      '<h3 class="locked-title">SUBSCRIBE TO SPIN</h3>' +
-      '<p class="view-sub">The daily spin is for @CrownedCards subscribers.</p>' +
-      '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a><br>' +
-      '<button class="link-btn" id="sub-recheck-btn">I\'ve subscribed — check again</button></div>';
-  }
-  /* 'verify': last check errored, or the cache is missing/stale */
-  const copy = subCheckFailed
-    ? 'Couldn\'t check your subscription — check your connection and try again.'
-    : 'Please verify your @CrownedCards subscription to continue.';
-  return head + '<div class="locked-panel"><div class="locked-ico">🔔</div>' +
-    '<h3 class="locked-title">VERIFY SUBSCRIPTION</h3><p class="view-sub">' + copy + '</p>' +
-    '<button class="spin-btn" id="sub-verify-btn">Verify subscription</button></div>';
-}
-
 function renderMembers() {
   const body = document.getElementById('members-body');
   if (!body) return;
@@ -640,17 +540,6 @@ function renderMembers() {
     if (b) b.onclick = signIn;
     return;
   }
-  /* Subscription gate: the wheel NEVER renders unless verified. */
-  if (subState !== 'verified') {
-    body.innerHTML = subGateHtml();
-    const so = document.getElementById('m-signout');
-    if (so) so.onclick = signOut;
-    const rc = document.getElementById('sub-recheck-btn');
-    if (rc) rc.onclick = doAuthFlow;
-    const vb = document.getElementById('sub-verify-btn');
-    if (vb) vb.onclick = doAuthFlow;
-    return;
-  }
   const name = esc((fbUser.displayName || 'Member').split(' ')[0]);
   body.innerHTML =
     '<div class="member-head"><span class="member-hello">👋 ' + name + '</span>' +
@@ -660,7 +549,9 @@ function renderMembers() {
     '<div class="wheel-wrap"><canvas id="wheel-cv"></canvas><div class="wheel-pointer"></div></div>' +
     '<button class="spin-btn" id="spin-btn">SPIN</button>' +
     '<div id="spin-countdown" class="spin-countdown"></div>' +
-    '<div id="spin-result"></div></div>' +
+    '<div id="spin-result"></div>' +
+    '<div class="sub-note"><p class="view-sub">🎡 Daily spins are for @CrownedCards subscribers — winners are verified before prizes ship.</p>' +
+    '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a></div></div>' +
     '<div class="spins-history"><h3 class="view-title" style="font-size:1.05rem">🕘 YOUR SPINS</h3>' +
     '<p class="view-sub" id="spins-total"></p><div id="spins-list"></div></div>';
   const so = document.getElementById('m-signout');
@@ -854,14 +745,6 @@ async function checkTodaySpin() {
 
 async function doSpin() {
   if (spinning || !db || !fbUser) return;
-  /* Subscription gate (defense in depth): the wheel only renders for verified
-     subscribers, and the roll must never run without verification either. */
-  if (typeof subState === 'undefined' || subState !== 'verified') {
-    const res = document.getElementById('spin-result');
-    if (res) res.innerHTML = '<p class="spin-error">Please verify your @CrownedCards subscription to spin.</p>';
-    renderMembers();
-    return;
-  }
   spinning = true;
   const btn = document.getElementById('spin-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'SPINNING…'; }
