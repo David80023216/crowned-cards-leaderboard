@@ -659,7 +659,11 @@ function initReferral(){
 }
 
 function shareLink(src){
-  let u = 'https://david80023216.github.io/crowned-cards-leaderboard/?ref=' + (fbUser ? fbUser.uid : '');
+  /* Dedicated short link for shares (tinyurl.com/25zxzs5y -> the page
+     directly; the main tinyurl.com/crownhunt-board goes through the
+     muse.ai wrapper, which strips query params in its iframe). Verified
+     2026-10-04: ?ref= and &src= survive the redirect. */
+  let u = 'https://tinyurl.com/25zxzs5y?ref=' + (fbUser ? fbUser.uid : '');
   if (src && SHARE_SRCS.indexOf(src) >= 0) u += '&src=' + src;
   return u;
 }
