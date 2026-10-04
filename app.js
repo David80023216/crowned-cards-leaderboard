@@ -544,7 +544,7 @@ function initFirebase() {
     db = firebase.firestore();
     firebase.auth().onAuthStateChanged(function(u){
       fbUser = u; subUnlocked = false; subCheckDone = false;
-      if (u) { authFailed = false; readSubAttestation(u); } else renderMembers();
+      if (u) { authFailed = false; readSubAttestation(u); startLiveTicker(); } else renderMembers();
     });
     if (!firebase.auth().currentUser) {
       firebase.auth().signInAnonymously().catch(function(){ authFailed = true; renderMembers(); });
@@ -568,7 +568,11 @@ const YT_SUBSCRIBE_URL = 'https://www.youtube.com/@CrownedCards?sub_confirmation
 
 /* Optional YouTube @handle — so winners can be reached. Saved to
    players/{uid}.displayName. Shown under the pack and under the lock
-   panel, in both Members states. */
+   panel, in both Members states.
+   Firestore rules (2026-10-04): spins allow public list queries capped at
+   12 (the live fresh-pulls ticker) and per-user get/create; players docs
+   allow public single-doc get (ticker handle join) with writes restricted
+   to the owning uid. Anonymous auth satisfies request.auth != null. */
 function handleHtml() {
   return '<div class="handle-box"><label class="handle-label" for="yt-handle">Your YouTube @handle</label>' +
     '<div class="handle-row"><input id="yt-handle" class="handle-input" type="text" maxlength="31" ' +
@@ -581,6 +585,14 @@ function handleHtml() {
 /* @ + 2–29 chars (3–30 total), letters/numbers/._- only */
 function validHandle(h) {
   return /^@[A-Za-z0-9._-]{2,29}$/.test(String(h || '').trim());
+}
+
+/* Best-known @handle for writes: freshly typed if valid, else the saved one. */
+function currentHandle(){
+  const inp = document.getElementById('yt-handle');
+  const typed = inp ? inp.value.trim() : '';
+  if (validHandle(typed)) return typed;
+  return handleSaved || '';
 }
 
 async function saveHandle() {
@@ -793,6 +805,9 @@ async function doSpin() {
       const r = computeSpin(uid, date);
       data = {uid:uid, date:date, rarity:r.rarity, cardId:r.cardId, cardName:r.cardName,
               value:r.value, createdAt: firebase.firestore.FieldValue.serverTimestamp()};
+      /* stamp the @handle on the spin so the live ticker can show it with no join */
+      const dnw = currentHandle();
+      if (dnw) data.displayName = dnw;
       try { await ref.set(data); }
       catch(e) { const s2 = await ref.get(); if (s2.exists) data = s2.data(); else throw e; }
     }
@@ -869,6 +884,50 @@ function renderPullFeed(){
   const half = pulls.map(chip).join('') ||
     '<span class="pull-chip"><span>No pulls yet — be the first on the board</span></span>';
   tick.innerHTML = half + half; /* doubled for the seamless marquee loop */
+}
+
+/* ---- LIVE ticker: Firestore onSnapshot keeps the fresh-pulls strip instant.
+   A new spin appears for every viewer within a second — no render cycle,
+   no page refresh. The baked CH_DATA feed above stays as the seed and the
+   fallback (listener errors leave it in place). Handles resolve from the
+   spin's own displayName stamp, falling back to a cached players/{uid}
+   lookup, then 'Anonymous'. ---- */
+var tickerUnsub = null;
+var liveRawPulls = [];
+var tickerHandles = {};  /* uid -> displayName cache */
+function paintLiveTicker(){
+  const tick = document.getElementById('pull-ticker'); if (!tick) return;
+  const half = liveRawPulls.map(function(v){
+    const uid = v.uid || '';
+    const h = v.displayName || tickerHandles[uid] || 'Anonymous';
+    return '<span class="pull-chip"><span class="pc-handle">' + esc(h) + '</span>' +
+      '<span class="pc-r ' + esc(v.rarity) + '">' + esc((v.rarity || '').toUpperCase()) + '</span>' +
+      '<span>' + esc(v.cardName || '') + '</span><span class="pc-v">' + money(+v.value || 0) + '</span></span>';
+  }).join('') || '<span class="pull-chip"><span>No pulls yet — be the first on the board</span></span>';
+  tick.innerHTML = half + half;
+}
+function startLiveTicker(){
+  if (!db || !fbUser || tickerUnsub) return;
+  try {
+    tickerUnsub = db.collection('spins').orderBy('createdAt', 'desc').limit(12)
+      .onSnapshot(function(snap){
+        const raws = [], need = [];
+        snap.forEach(function(d){
+          const v = d.data() || {};
+          raws.push(v);
+          const uid = v.uid || '';
+          if (!v.displayName && uid && !(uid in tickerHandles)) need.push(uid);
+        });
+        liveRawPulls = raws;
+        paintLiveTicker();
+        need.forEach(function(uid){
+          db.collection('players').doc(uid).get().then(function(s){
+            tickerHandles[uid] = (s.exists && s.data().displayName) || '';
+            paintLiveTicker();
+          }).catch(function(){ tickerHandles[uid] = ''; paintLiveTicker(); });
+        });
+      }, function(){ /* listener denied/offline — baked feed stays */ });
+  } catch(e){ /* baked feed stays */ }
 }
 /* Season banner + header subtitle + updated timestamp from the ledger snapshot. */
 function renderSeasonBanner(){
