@@ -178,6 +178,30 @@ a.spin-btn.sub-btn{display:inline-block;text-decoration:none;line-height:2.7;pad
 #spins-list{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:.4rem 1rem}
 #spins-list .pull-row{align-items:center}
 .rarity-badge.inline{position:static;display:inline-block}
+/* ---- Checklist binder: tap a player -> compact per-set collection checklist ----
+   5 rarity sections x 3 small slots. Owned cards full color; missing cards faint
+   (grayscale + dim + low opacity) so the panel reads as a checklist, not a gallery. */
+.binder-panel.checklist{padding:.8rem .7rem 1rem}
+.checklist-head{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;margin-bottom:.45rem}
+.checklist-title{font-weight:800;color:var(--gold);font-size:.95rem}
+.checklist-count{color:var(--muted);font-size:.8rem;white-space:nowrap}
+.checklist-bar{height:6px;background:#22222a;border-radius:999px;overflow:hidden;margin-bottom:.85rem}
+.checklist-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#b98f1f,#ffd34d);
+box-shadow:0 0 8px rgba(255,211,77,.5)}
+.checklist-sec{margin-bottom:.8rem}
+.checklist-sec:last-child{margin-bottom:0}
+.checklist-sec-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem}
+.checklist-sec-count{color:var(--muted);font-size:.75rem;font-weight:700}
+.checklist-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.checklist-slot{min-width:0}
+.checklist-art{position:relative;aspect-ratio:2/3;border-radius:8px;overflow:hidden;
+background:#0d0d10;border:1px solid var(--line)}
+.checklist-slot.missing .checklist-art{border-color:#33333c}
+.checklist-art img{width:100%;height:100%;object-fit:cover;display:block}
+.checklist-slot.missing .checklist-art img{filter:grayscale(85%) brightness(.65);opacity:.35}
+.checklist-name{font-size:.68rem;color:var(--muted);text-align:center;padding:.25rem 0 0;
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.checklist-slot.missing .checklist-name{opacity:.5}
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -259,29 +283,39 @@ const ART = {"common-1": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wB
 const CARDS = {"common-1": {"file": "common-1.png", "id": "common-1", "name": "Jax Moreno", "rarity": "common", "sport": "basketball"}, "common-2": {"file": "common-2.png", "id": "common-2", "name": "Cole Drummond", "rarity": "common", "sport": "baseball"}, "common-3": {"file": "common-3.png", "id": "common-3", "name": "Theo Marsh", "rarity": "common", "sport": "football"}, "rare-1": {"file": "rare-1.png", "id": "rare-1", "name": "Dane Calloway", "rarity": "rare", "sport": "football"}, "rare-2": {"file": "rare-2.png", "id": "rare-2", "name": "Milo Grant", "rarity": "rare", "sport": "basketball"}, "rare-3": {"file": "rare-3.png", "id": "rare-3", "name": "Brock Halden", "rarity": "rare", "sport": "hockey"}, "epic-1": {"file": "epic-1.png", "id": "epic-1", "name": "Finn Lockhart", "rarity": "epic", "sport": "hockey"}, "epic-2": {"file": "epic-2.png", "id": "epic-2", "name": "Reyes Dalton", "rarity": "epic", "sport": "baseball"}, "epic-3": {"file": "epic-3.png", "id": "epic-3", "name": "Dre Coleman", "rarity": "epic", "sport": "football"}, "legendary-1": {"file": "legendary-1.png", "id": "legendary-1", "name": "Zane Cross", "rarity": "legendary", "sport": "basketball"}, "legendary-2": {"file": "legendary-2.png", "id": "legendary-2", "name": "Hank Vargas", "rarity": "legendary", "sport": "baseball"}, "legendary-3": {"file": "legendary-3.png", "id": "legendary-3", "name": "Sven Kaldor", "rarity": "legendary", "sport": "hockey"}, "grail-1": {"file": "grail-1.png", "id": "grail-1", "name": "Jet Okafor", "rarity": "grail", "sport": "football"}, "grail-2": {"file": "grail-2.png", "id": "grail-2", "name": "Rico Vance", "rarity": "grail", "sport": "basketball"}, "grail-3": {"file": "grail-3.png", "id": "grail-3", "name": "Tommy Blaze", "rarity": "grail", "sport": "baseball"}};
 const money = v => v >= 100 ? "$" + Math.round(v).toLocaleString("en-US") : "$" + v.toFixed(2);
 
-const RARITY_RANK = {grail:0, legendary:1, epic:2, rare:3, common:4};
+const BY_RARITY = {"common": ["common-1", "common-2", "common-3"], "rare": ["rare-1", "rare-2", "rare-3"], "epic": ["epic-1", "epic-2", "epic-3"], "legendary": ["legendary-1", "legendary-2", "legendary-3"], "grail": ["grail-1", "grail-2", "grail-3"]};
+const RARITY_LABEL = {common:'Common', rare:'Rare', epic:'Epic', legendary:'Legendary', grail:'Grail'};
+const CHECK_ORDER = ['common','rare','epic','legendary','grail'];
 
-function stackPulls(pulls) {
-  const map = {};
-  pulls.forEach(x => { (map[x.card] = map[x.card] || []).push(x); });
-  return Object.keys(map).map(cid => {
-    const list = map[cid].slice().sort((a,b) => b.value - a.value);
-    return {card: cid, rarity: list[0].rarity, pulls: list, count: list.length,
-            total: list.reduce((s,x) => s + x.value, 0)};
-  }).sort((a,b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity] || b.total - a.total);
-}
-
-function stackTile(stack) {
-  const c = CARDS[stack.card];
-  const multi = stack.count > 1;
-  const rows = stack.pulls.map(x =>
-    `<div class="pull-row"><span>${x.date}</span><span class="card-value">${money(x.value)}</span><span>${x.source}</span></div>`).join("");
-  return `<div class="card-tile r-${stack.rarity}${multi?' is-stack':''}"${multi?' data-expand="1"':''}>
-    <div class="card-art-wrap"><img class="card-art" loading="lazy" src="${ART[stack.card]}" alt="${c.name}">
-    <span class="rarity-badge">${stack.rarity}</span>${multi?`<span class="dup-badge">×${stack.count}</span>`:''}</div>
-    <div class="card-name">${c.name}</div>
-    <div class="card-meta">${c.sport} · <span class="card-value">${money(stack.total)}</span></div>
-    <div class="card-date">${multi? (stack.count+' pulls · tap to expand') : (stack.pulls[0].date+' · '+stack.pulls[0].source)}</div>${multi?`<div class="pull-list">${rows}</div>`:''}</div>`;
+/* Checklist binder: 5 rarity sections x 3 card slots. Owned cards render full
+   color; missing cards are faint (grayscale + dim + low opacity) so the expanded
+   panel reads as a collection checklist, not a gallery. */
+function checklistHtml(p) {
+  const owned = {};
+  p.pulls.forEach(function(x){ owned[x.card] = true; });
+  let totalOwned = 0;
+  const secs = CHECK_ORDER.map(function(r){
+    const ids = BY_RARITY[r] || [];
+    const n = ids.filter(function(id){ return owned[id]; }).length;
+    totalOwned += n;
+    const slots = ids.map(function(id){
+      const c = CARDS[id] || {name:id};
+      const has = !!owned[id];
+      return '<div class="checklist-slot' + (has ? '' : ' missing') + '">' +
+        '<div class="checklist-art"><img loading="lazy" src="' + (ART[id] || '') + '" alt="' + esc(c.name) + (has ? '' : ' (not owned)') + '"></div>' +
+        '<div class="checklist-name">' + esc(c.name) + '</div></div>';
+    }).join('');
+    return '<div class="checklist-sec"><div class="checklist-sec-head">' +
+      '<span class="rcount ' + r + '">' + RARITY_LABEL[r] + '</span>' +
+      '<span class="checklist-sec-count">' + n + '/3</span></div>' +
+      '<div class="checklist-grid">' + slots + '</div></div>';
+  }).join('');
+  const pct = Math.round(totalOwned / 15 * 100);
+  return '<div class="binder-panel checklist">' +
+    '<div class="checklist-head"><span class="checklist-title">' + esc(p.handle) + ' checklist</span>' +
+    '<span class="checklist-count">' + totalOwned + ' of 15 cards</span></div>' +
+    '<div class="checklist-bar"><div class="checklist-fill" style="width:' + pct + '%"></div></div>' +
+    secs + '</div>';
 }
 
 const PRIZE_SHORT = [
@@ -334,22 +368,10 @@ function toggleBinder(row) {
   document.querySelectorAll(".binder-row").forEach(r => r.remove());
   document.querySelectorAll("#standings-body tr").forEach(r => r.classList.remove("open"));
   const p = PLAYERS.find(x => x.rank === rank);
-  const byRar = {};
-  p.pulls.forEach(x => byRar[x.rarity] = (byRar[x.rarity]||0)+1);
-  const counts = ["grail","legendary","epic","rare","common"].filter(r=>byRar[r])
-    .map(r => byRar[r]+" "+r).join(" · ");
-  const stacks = stackPulls(p.pulls);
   const tr = document.createElement("tr");
   tr.className = "binder-row";
-  tr.innerHTML = `<td colspan="6"><div class="binder-panel">
-    <div class="binder-head"><span class="binder-title">${p.handle}'s binder</span>
-    <span class="binder-total">${p.pulls.length} pulls · ${stacks.length} unique · ${money(p.value)}</span></div>
-    <div class="binder-grid">${stacks.map(stackTile).join("")}</div>
-    <div class="binder-total" style="margin-top:.6rem;text-align:center">${counts}</div>
-  </div></td>`;
+  tr.innerHTML = '<td colspan="6">' + checklistHtml(p) + '</td>';
   row.after(tr); row.classList.add("open"); openRank = rank;
-  tr.querySelectorAll('.card-tile[data-expand]').forEach(t =>
-    t.addEventListener('click', function(ev){ ev.stopPropagation(); t.classList.toggle('open'); }));
 }
 
 function renderGallery() {
