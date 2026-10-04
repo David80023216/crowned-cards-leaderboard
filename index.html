@@ -2,6 +2,12 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Crown Hunt — Demo Preview</title>
+<meta property="og:title" content="Crown Hunt — Top Collectors">
+<meta property="og:description" content="Comment = card. Winning pick = better card. Top collector wins real cards Oct 31.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://david80023216.github.io/crowned-cards-leaderboard/">
+<meta property="og:image" content="https://david80023216.github.io/crowned-cards-leaderboard/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 :root{--bg:#0a0a0c;--card:#16161c;--line:#2b2b33;--gold:#ffd34d;--gold-dim:#b98f1f;
 --gold-deep:#8a6a12;--text:#f4f1e8;--muted:#9a97a0;--radius:14px;--tabbar-h:66px;--stand-row:4.75rem}
@@ -19,6 +25,10 @@ padding:.6rem .9rem;background:rgba(10,10,12,.94);border-bottom:1px solid var(--
 .appbar-title{font-weight:800;color:var(--gold);font-size:1.15rem;letter-spacing:.04em;
 text-shadow:0 2px 14px rgba(255,211,77,.3)}
 .appbar-sub{color:var(--muted);font-size:.74rem}
+.sub-btn{background:var(--gold);color:#141414;font-weight:800;font-size:.8rem;padding:.5rem .95rem;border-radius:999px;text-decoration:none;white-space:nowrap;flex:none}
+.updated-ts{text-align:center;color:var(--muted);font-size:.72rem;margin:.35rem 0 0}
+.how-video-link{text-align:center;margin:.5rem 0 0}
+.how-video-link a{color:var(--gold);font-size:.82rem;font-weight:700;text-decoration:none}
 .views{max-width:860px;margin:0 auto;padding:.9rem .9rem 1.4rem}
 .view{display:none}.view.active{display:block;animation:viewin .18s ease}
 @keyframes viewin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -363,13 +373,15 @@ font-variant-numeric:tabular-nums}
 <div style="font-size:.85rem;color:#9a97a0;letter-spacing:.12em">DEMO PREVIEW</div></div>
 <div class="demo-banner"><span>DEMO PREVIEW — FAKE PLAYERS</span></div>
 <header class="appbar"><div><div class="appbar-title">👑 CROWN HUNT</div>
-<div class="appbar-sub">Season 1 · Demo Preview</div></div></header>
+<div class="appbar-sub">Season 1 · Demo Preview</div></div>
+<a class="sub-btn" href="https://www.youtube.com/@CrownedCards?sub_confirmation=1" target="_blank" rel="noopener">Subscribe</a></header>
 
 <div class="views">
 <section class="view active" id="v-standings">
 <h2 class="view-title">🏆 TOP COLLECTORS</h2>
 <p class="view-sub">Ranked by total collection value · tap a player to open their binder</p>
 <div class="season-banner" id="season-banner"></div>
+<p class="updated-ts">Board updated Oct 3, 2026 · 10:51 PM CDT</p>
 <button class="pack-cta" id="pack-cta" style="display:none" onclick="goRip()"></button>
 <p class="feed-label">🔥 FRESH PULLS</p>
 <div class="pull-feed" aria-label="Fresh pulls"><div class="pull-ticker" id="pull-ticker"></div></div>
@@ -386,6 +398,7 @@ font-variant-numeric:tabular-nums}
 <div class="how-step"><div class="how-ico">👑</div><div class="how-t">Top collector wins</div><div class="how-s">Highest value Oct 31</div></div>
 </div>
 <p class="how-note">Pick window closes at the crowning — late comments still get the instant card</p>
+<p class="how-video-link"><a href="how-to-play.mp4">▶ Watch: how to play in 60 seconds</a></p>
 
 </section>
 
@@ -532,7 +545,7 @@ function checklistHtml(p) {
         : '<div class="checklist-value">' + rangeLabel(r) + '</div>';
       const dupN = owned[id] || 0;
       const dupBadge = dupN > 1 ? '<span class="dup-badge">×' + dupN + '</span>' : '';
-      const lvlTag = cardLvl[id] ? '<span class="leveled-tag">⬆ LEVELED</span>' : '';
+      const lvlTag = cardLvl[id] ? '<span class="leveled-tag" role="img" aria-label="Card leveled up">⬆ LEVELED</span>' : '';
       return '<div class="checklist-slot' + (has ? '' : ' missing') + '">' + dupBadge + lvlTag +
         '<div class="checklist-flip" onclick="flipSlot(event,this)">' +
         '<div class="checklist-face checklist-front"><img loading="lazy" src="' + (ART[id] || '') + '" alt="' + esc(c.name) + (has ? '' : ' (not owned)') + '"></div>' +
