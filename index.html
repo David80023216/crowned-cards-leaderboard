@@ -4,7 +4,7 @@
 <title>Crown Hunt — Demo Preview</title>
 <style>
 :root{--bg:#0a0a0c;--card:#16161c;--line:#2b2b33;--gold:#ffd34d;--gold-dim:#b98f1f;
---gold-deep:#8a6a12;--text:#f4f1e8;--muted:#9a97a0;--radius:14px;--tabbar-h:66px}
+--gold-deep:#8a6a12;--text:#f4f1e8;--muted:#9a97a0;--radius:14px;--tabbar-h:66px;--stand-row:4.75rem}
 *{box-sizing:border-box}html{-webkit-tap-highlight-color:transparent;background:#0a0a0c;font-size:16px}
 body{margin:0;background:radial-gradient(1200px 520px at 50% -80px,#221c0e 0%,var(--bg) 62%);
 color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -43,9 +43,30 @@ td.player{grid-area:player;overflow:hidden;text-overflow:ellipsis;white-space:no
 td.value{grid-area:value;font-weight:800;color:var(--gold);text-align:right;white-space:nowrap}
 td.mythics-cell{grid-area:mythics;font-size:.85rem;color:#f0eaff}
 td.streak-cell{grid-area:streak;justify-self:end;margin-top:.3rem;font-size:.85rem}
-.streak{color:#ff8c42;font-weight:700;white-space:nowrap}.streak-1{color:var(--muted);font-size:.85rem}
+.streak-1{color:var(--muted);font-size:.85rem}
+/* Rarity count pills: jewel-tone CSS badges, no emoji — black-and-gold premium theme */
+.rcount{display:inline-block;font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+padding:.2rem .55rem;border-radius:999px;white-space:nowrap}
+.rcount.common{background:#3a3f47;color:#d7dae0}
+.rcount.rare{background:#1e3f7a;color:#cfe4ff}
+.rcount.epic{background:#6d28d9;color:#f3e8ff}
+.rcount.legendary{background:linear-gradient(135deg,#ffd34d,#b98f1f);color:#241a04}
+.rcount.mythic{background:linear-gradient(135deg,#c026d3,#7c3aed);color:#fff}
+.streak-pill{display:inline-block;font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+padding:.2rem .55rem;border-radius:999px;white-space:nowrap;
+background:linear-gradient(135deg,#ff8c42,#c2410c);color:#1a0d05}
 .prize-race{text-align:center;font-size:.82rem;color:var(--muted);margin:0 0 .8rem;line-height:1.55}
 .prize-race b{color:var(--gold);letter-spacing:.04em}
+/* Standings search + scroll: rows measure ~4.75rem each (padding .7rem*2 + ~2.8rem
+   content rows + .55rem margin); the scroll container shows 10 rows, the 11th+
+   scrolls. Prize chips / expanded binders may exceed it — they scroll too.
+   Search input, prize-race summary and headers stay fixed above the scroll area. */
+.standings-search{width:100%;background:#141417;border:1px solid var(--line);border-radius:.7rem;
+color:var(--text);padding:.65rem .9rem;font-size:.9rem;font-family:inherit;margin:0 0 .8rem}
+.standings-search::placeholder{color:var(--muted)}
+.standings-search:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,211,77,.25)}
+.standings-scroll{overflow-y:auto;max-height:calc(var(--stand-row)*10);-webkit-overflow-scrolling:touch;
+scrollbar-width:thin;scrollbar-color:var(--gold-deep) transparent}
 td.prize-cell{grid-area:prize;margin-top:.5rem;min-width:0}
 .prize-chip{display:flex;align-items:center;gap:.55rem;background:rgba(255,211,77,.055);
 border:1px solid var(--gold-dim);border-radius:.65rem;padding:.32rem .55rem .32rem .32rem}
@@ -131,6 +152,7 @@ filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
 font-weight:800;font-size:1.05rem;letter-spacing:.06em;padding:.7rem 2.6rem;margin:.7rem 0 .3rem;
 cursor:pointer;font-family:inherit}
 .spin-btn:disabled{opacity:.45;cursor:default}
+a.spin-btn.sub-btn{display:inline-block;text-decoration:none;line-height:2.7;padding:0 1.6rem;margin:.4rem 0 .2rem}
 .spin-countdown{color:var(--muted);font-size:.85rem;min-height:1.3em}
 .spin-result{margin-top:.8rem}
 .spin-result .card-art-wrap{max-width:180px;margin:0 auto;border-radius:10px;overflow:hidden}
@@ -158,7 +180,8 @@ cursor:pointer;font-family:inherit}
 <h2 class="view-title">🏆 TOP COLLECTORS</h2>
 <p class="view-sub">Ranked by total collection value · tap a player to open their binder</p>
 <p class="prize-race" id="prize-race"></p>
-<table class="standings-table"><tbody id="standings-body"></tbody></table>
+<input type="search" id="standings-search" class="standings-search" placeholder="Search players…" autocomplete="off" aria-label="Search players">
+<div class="standings-scroll"><table class="standings-table"><tbody id="standings-body"></tbody></table></div>
 </section>
 
 
@@ -261,21 +284,29 @@ function prizeChip(p) {
     + `<span class="prize-chip-name">${s.name}</span><span class="prize-chip-tag">WINNING</span></div></td>`;
 }
 
+let standingsQuery = '';
 function renderStandings() {
   const el = document.getElementById("standings-body");
-  const ordered = [...PLAYERS].sort((a,b) => a.rank - b.rank);
-  el.innerHTML = ordered.map(p => `
+  const all = [...PLAYERS].sort((a,b) => a.rank - b.rank);
+  const q = standingsQuery.trim().toLowerCase();
+  const ordered = q ? all.filter(p => (p.handle || '').toLowerCase().includes(q)) : all;
+  el.innerHTML = ordered.length ? ordered.map(p => `
     <tr class="${p.rank===1?'leader':''}" data-rank="${p.rank}">
       <td class="rank">${p.rank===1?'👑':p.rank}</td>
       <td class="player">${p.handle}</td>
       <td class="value">${money(p.value)}</td>
-      <td class="mythics-cell">${p.mythics?('🌈 '+p.mythics+' Mythic'):(p.legendaries?('⭐ '+p.legendaries+' Legendary'):'')}</td>
-      <td class="streak-cell">${p.streak>1?('<span class="streak">🔥 '+p.streak+'-day streak</span>'):('<span class="streak-1">day '+p.streak+'</span>')}</td>${prizeChip(p)}
-    </tr>`).join("");
-  el.querySelectorAll("tr").forEach(row => row.addEventListener("click", () => toggleBinder(row)));
-  const top3 = ordered.slice(0, 3);
+      <td class="mythics-cell">${p.mythics?('<span class="rcount mythic">'+p.mythics+' Mythic</span>'):(p.legendaries?('<span class="rcount legendary">'+p.legendaries+' Legendary</span>'):'')}</td>
+      <td class="streak-cell">${p.streak>1?('<span class="streak-pill">'+p.streak+'-day streak</span>'):('<span class="streak-1">day '+p.streak+'</span>')}</td>${prizeChip(p)}
+    </tr>`).join("") :
+    `<tr class="no-results"><td colspan="6" style="text-align:center;color:var(--muted);padding:1.4rem;cursor:default">No players match &ldquo;${esc(standingsQuery.trim())}&rdquo;.</td></tr>`;
+  el.querySelectorAll("tr").forEach(row => row.addEventListener("click", function(){ if (!row.classList.contains("no-results")) toggleBinder(row); }));
+  const top3 = all.slice(0, 3);
   const race = document.getElementById("prize-race");
   if (race) race.innerHTML = `🏆 <b>As it stands:</b> ` + top3.map((p,i) => `${p.handle} takes ${PRIZE_SHORT[i].takes}`).join(" · ");
+}
+function bindStandingsSearch() {
+  const sq = document.getElementById('standings-search');
+  if (sq && sq.addEventListener) sq.addEventListener('input', function(){ standingsQuery = sq.value; renderStandings(); });
 }
 
 let openRank = null;
@@ -295,7 +326,7 @@ function toggleBinder(row) {
   const tr = document.createElement("tr");
   tr.className = "binder-row";
   tr.innerHTML = `<td colspan="6"><div class="binder-panel">
-    <div class="binder-head"><span class="binder-title">📁 ${p.handle}'s binder</span>
+    <div class="binder-head"><span class="binder-title">${p.handle}'s binder</span>
     <span class="binder-total">${p.pulls.length} pulls · ${stacks.length} unique · ${money(p.value)}</span></div>
     <div class="binder-grid">${stacks.map(stackTile).join("")}</div>
     <div class="binder-total" style="margin-top:.6rem;text-align:center">${counts}</div>
@@ -423,16 +454,118 @@ function initFirebase() {
   try {
     firebase.initializeApp(FB_CONFIG);
     db = firebase.firestore();
-    firebase.auth().onAuthStateChanged(function(u){ fbUser = u; renderAuthArea(); renderMembers(); });
+    firebase.auth().onAuthStateChanged(function(u){
+      fbUser = u; renderAuthArea();
+      if (!u) { subState = 'unknown'; renderMembers(); return; }
+      /* Returning session: no fresh OAuth token, so trust a fresh cache read.
+         A live re-check needs a token → the verify panel triggers doAuthFlow().
+         Skip when a fresh sign-in flow is already driving the state. */
+      if (authFlowActive) return;
+      subState = 'checking'; renderMembers();
+      readSubCache(u.uid).then(function(s){ subState = s; subCheckFailed = false; renderMembers(); });
+    });
     return true;
   } catch(e){ return false; }
 }
 
-function signIn() {
-  if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') return;
-  const provider = new firebase.auth.GoogleAuthProvider();
-  firebase.auth().signInWithPopup(provider).catch(function(e){ alert('Sign-in failed: ' + (e && e.message || e)); });
+/* ============ YouTube subscription gating (@CrownedCards) ============
+   New game rule: you must be subscribed to @CrownedCards to spin.
+   Client-side velvet rope in front of the wheel; Firestore rules + the
+   deterministic-roll audit remain the anti-cheat backstop. */
+const YT_CHANNEL_ID = 'UCMb6weNm3HQjiMuCMiVb_qQ';
+const YT_SUBSCRIBE_URL = 'https://www.youtube.com/@CrownedCards?sub_confirmation=1';
+const SUB_CACHE_MS = 7 * 24 * 3600 * 1000;
+/* subState: 'unknown' | 'checking' | 'verified' | 'unsubscribed' | 'denied' | 'verify' */
+let subState = 'unknown';
+let subCheckFailed = false; /* last check hit 'error' → show the connection copy */
+let authFlowActive = false; /* fresh sign-in in flight; restore read must not clobber it */
+
+async function checkYtSubscription(accessToken) {
+  const headers = { 'Authorization': 'Bearer ' + accessToken };
+  try {
+    let r = await fetch('https://www.googleapis.com/youtube/v3/subscriptions?part=id&mine=true&forChannelId=' + YT_CHANNEL_ID, { headers: headers });
+    if (r.ok) {
+      const j = await r.json();
+      if (j && j.pageInfo && j.pageInfo.totalResults > 0) return true;
+    } else if (r.status !== 404) {
+      return 'error'; /* non-404 HTTP failure — never default to true */
+    }
+    /* 0 results, or 404 = Google account has no YouTube channel (can't be
+       subscribed). A channel owner can't subscribe to their own channel, so
+       check the own-channel id as well — the owner always passes. */
+    r = await fetch('https://www.googleapis.com/youtube/v3/channels?part=id&mine=true', { headers: headers });
+    if (!r.ok) return r.status === 404 ? false : 'error';
+    const j = await r.json();
+    const items = (j && j.items) || [];
+    for (const it of items) if (it && it.id === YT_CHANNEL_ID) return true;
+    return false;
+  } catch (e) {
+    return 'error'; /* network failure — never default to true */
+  }
 }
+
+async function writeSubCache(uid, result, displayName) {
+  if (!db || result === 'error') return; /* a failed check must not poison the cache */
+  try {
+    await db.collection('players').doc(uid).set({
+      subscribed: result === true,
+      subCheckedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      displayName: displayName || ''
+    }, { merge: true });
+  } catch (e) { /* cache write failure must not block the wheel */ }
+}
+
+async function readSubCache(uid) {
+  if (!db) return 'verify';
+  try {
+    const doc = await db.collection('players').doc(uid).get();
+    if (doc && doc.exists) {
+      const d = doc.data() || {};
+      const ts = d.subCheckedAt;
+      const age = (ts && typeof ts.toMillis === 'function') ? (Date.now() - ts.toMillis()) : Infinity;
+      if (d.subscribed === true && age < SUB_CACHE_MS) return 'verified';
+      if (d.subscribed === false) return 'unsubscribed';
+    }
+  } catch (e) { /* fall through to verify */ }
+  return 'verify'; /* no doc, stale cache, or read failure → ask to verify */
+}
+
+function applySubResult(result) {
+  subCheckFailed = (result === 'error');
+  subState = (result === true) ? 'verified' : (result === false ? 'unsubscribed' : 'verify');
+  renderMembers();
+}
+
+/* Full auth flow: Google sign-in WITH the YouTube read-only scope, then a live
+   subscription check, then the cache write. Used for first sign-in AND every
+   "check again / verify" re-auth (signInWithPopup is silent when the session
+   is fresh). */
+async function doAuthFlow() {
+  if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') return;
+  authFlowActive = true;
+  subState = 'checking'; subCheckFailed = false;
+  renderMembers();
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.addScope('https://www.googleapis.com/auth/youtube.readonly');
+  let result = null;
+  try {
+    result = await firebase.auth().signInWithPopup(provider);
+  } catch (e) { /* popup closed / blocked → fall through to verify below */ }
+  const u = result && result.user;
+  if (!u) { authFlowActive = false; subState = 'verify'; subCheckFailed = true; renderMembers(); return; }
+  fbUser = u; renderAuthArea();
+  const token = result.credential && result.credential.accessToken;
+  if (!token) {
+    /* user denied the YouTube permission at the Google consent screen */
+    authFlowActive = false; subState = 'denied'; renderMembers(); return;
+  }
+  const check = await checkYtSubscription(token);
+  await writeSubCache(u.uid, check, u.displayName);
+  authFlowActive = false;
+  applySubResult(check);
+}
+
+function signIn() { doAuthFlow(); }
 
 function signOut() {
   if (typeof firebase === 'undefined') return;
@@ -463,6 +596,36 @@ function membersLockedHtml(msg, showBtn) {
     (showBtn ? '<button class="spin-btn" id="m-signin-btn">Sign in with Google</button>' : '') + '</div>';
 }
 
+function subGateHtml() {
+  const head = '<div class="member-head"><span class="member-hello">👋 ' + esc((fbUser.displayName || 'Member').split(' ')[0]) + '</span>' +
+    '<button class="link-btn" id="m-signout">Sign out</button></div>';
+  if (subState === 'checking') {
+    return head + '<div class="locked-panel"><div class="locked-ico">🔒</div>' +
+      '<h3 class="locked-title">CHECKING SUBSCRIPTION</h3><p class="view-sub">Confirming your @CrownedCards subscription…</p></div>';
+  }
+  if (subState === 'denied') {
+    return head + '<div class="locked-panel"><div class="locked-ico">🔔</div>' +
+      '<h3 class="locked-title">SUBSCRIBE TO SPIN</h3>' +
+      '<p class="view-sub">The daily spin is for @CrownedCards subscribers.<br>We need YouTube read-only access to confirm your subscription.</p>' +
+      '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a><br>' +
+      '<button class="link-btn" id="sub-recheck-btn">Try again</button></div>';
+  }
+  if (subState === 'unsubscribed') {
+    return head + '<div class="locked-panel"><div class="locked-ico">🔔</div>' +
+      '<h3 class="locked-title">SUBSCRIBE TO SPIN</h3>' +
+      '<p class="view-sub">The daily spin is for @CrownedCards subscribers.</p>' +
+      '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a><br>' +
+      '<button class="link-btn" id="sub-recheck-btn">I\'ve subscribed — check again</button></div>';
+  }
+  /* 'verify': last check errored, or the cache is missing/stale */
+  const copy = subCheckFailed
+    ? 'Couldn\'t check your subscription — check your connection and try again.'
+    : 'Please verify your @CrownedCards subscription to continue.';
+  return head + '<div class="locked-panel"><div class="locked-ico">🔔</div>' +
+    '<h3 class="locked-title">VERIFY SUBSCRIPTION</h3><p class="view-sub">' + copy + '</p>' +
+    '<button class="spin-btn" id="sub-verify-btn">Verify subscription</button></div>';
+}
+
 function renderMembers() {
   const body = document.getElementById('members-body');
   if (!body) return;
@@ -475,6 +638,17 @@ function renderMembers() {
     body.innerHTML = membersLockedHtml('Sign in with Google to unlock your daily spin.', true);
     const b = document.getElementById('m-signin-btn');
     if (b) b.onclick = signIn;
+    return;
+  }
+  /* Subscription gate: the wheel NEVER renders unless verified. */
+  if (subState !== 'verified') {
+    body.innerHTML = subGateHtml();
+    const so = document.getElementById('m-signout');
+    if (so) so.onclick = signOut;
+    const rc = document.getElementById('sub-recheck-btn');
+    if (rc) rc.onclick = doAuthFlow;
+    const vb = document.getElementById('sub-verify-btn');
+    if (vb) vb.onclick = doAuthFlow;
     return;
   }
   const name = esc((fbUser.displayName || 'Member').split(' ')[0]);
@@ -680,6 +854,14 @@ async function checkTodaySpin() {
 
 async function doSpin() {
   if (spinning || !db || !fbUser) return;
+  /* Subscription gate (defense in depth): the wheel only renders for verified
+     subscribers, and the roll must never run without verification either. */
+  if (typeof subState === 'undefined' || subState !== 'verified') {
+    const res = document.getElementById('spin-result');
+    if (res) res.innerHTML = '<p class="spin-error">Please verify your @CrownedCards subscription to spin.</p>';
+    renderMembers();
+    return;
+  }
   spinning = true;
   const btn = document.getElementById('spin-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'SPINNING…'; }
@@ -767,7 +949,7 @@ async function loadSpins() {
 }
 
 document.getElementById("splash").classList.add("hide");
-renderStandings(); renderGallery();
+renderStandings(); renderGallery(); bindStandingsSearch();
 initFirebase();
 renderAuthArea(); preloadWheelArt(); renderMembers();
 </script>
