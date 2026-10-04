@@ -132,20 +132,28 @@ background:var(--gold);border-radius:999px;padding:.15rem .6rem;margin:.3rem 0 .
 .prize-value{color:var(--gold);font-weight:800;margin:0 0 .2rem;font-size:.9rem}
 .prize-row{display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem}
 @media (max-width:430px){.prize-row{grid-template-columns:1fr}}
-.auth-btn{background:var(--gold);border:0;border-radius:999px;color:#141414;font-weight:800;
-font-size:.78rem;padding:.45rem .85rem;cursor:pointer;font-family:inherit;white-space:nowrap}
-.auth-chip{display:flex;align-items:center;gap:.4rem;background:#1a1a20;border:1px solid var(--gold-dim);
-border-radius:999px;color:var(--text);padding:.22rem .65rem .22rem .28rem;cursor:pointer;font-family:inherit;
-font-size:.78rem;font-weight:700;white-space:nowrap}
-.auth-chip img{width:26px;height:26px;border-radius:50%}
+.handle-box{margin:1.1rem auto 0;max-width:420px;padding:.9rem 1rem;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.handle-label{display:block;color:var(--gold);font-weight:700;font-size:.82rem;letter-spacing:.06em;margin-bottom:.45rem}
+.handle-row{display:flex;gap:.5rem}
+.handle-input{flex:1;min-width:0;background:#0d0d0f;border:1px solid var(--line);border-radius:10px;color:var(--text);
+padding:.55rem .7rem;font-size:.9rem;font-family:inherit}
+.handle-input:focus{outline:none;border-color:var(--gold)}
+.handle-save{background:var(--gold);border:0;border-radius:10px;color:#141414;font-weight:800;padding:.55rem .9rem;
+cursor:pointer;font-family:inherit;font-size:.85rem;white-space:nowrap}
+.handle-help{color:var(--muted);font-size:.78rem;margin:.45rem 0 0}
+.handle-err{color:#ff8a8a;font-size:.8rem;margin:.45rem 0 0}
+.handle-ok{color:#8fd694;font-size:.8rem;margin:.45rem 0 0}
+.handle-nudge{color:var(--gold);font-size:.85rem;text-align:center;margin:.9rem 0 0}
 .locked-panel{text-align:center;padding:2.4rem 1.2rem;background:var(--card);border:1px solid var(--line);
 border-radius:var(--radius)}
 .locked-ico{font-size:2.6rem}
 .locked-title{color:var(--gold);letter-spacing:.12em;margin:.5rem 0 .2rem;font-size:1.05rem}
-.member-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem}
-.member-hello{font-weight:800;color:var(--gold)}
-.link-btn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;
-font-size:.85rem;font-family:inherit;padding:.4rem}
+.locked-panel.gold{border-color:var(--gold-deep);box-shadow:0 0 24px rgba(255,211,77,.12)}
+.unlock-btn{background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:999px;
+font-weight:800;font-size:.95rem;letter-spacing:.04em;padding:.65rem 1.8rem;margin:.5rem 0 .2rem;
+cursor:pointer;font-family:inherit}
+.unlock-btn:disabled{opacity:.45;cursor:default}
+.unlock-note{color:var(--muted);font-size:.82rem;margin:1rem 0 0}
 .spin-panel{background:var(--card);border:1px solid var(--gold-deep);border-radius:var(--radius);
 padding:1rem .8rem 1.1rem;text-align:center;margin-bottom:1rem}
 .wheel-wrap{position:relative;width:min(320px,84vw);margin:.7rem auto}
@@ -181,7 +189,7 @@ a.spin-btn.sub-btn{display:inline-block;text-decoration:none;line-height:2.7;pad
 <div style="font-size:.85rem;color:#9a97a0;letter-spacing:.12em">DEMO PREVIEW</div></div>
 <div class="demo-banner"><span>DEMO PREVIEW — FAKE PLAYERS</span></div>
 <header class="appbar"><div><div class="appbar-title">👑 CROWN HUNT</div>
-<div class="appbar-sub">Season 1 · Demo Preview</div></div><div id="auth-area"></div></header>
+<div class="appbar-sub">Season 1 · Demo Preview</div></div></header>
 
 <div class="views">
 <section class="view active" id="v-standings">
@@ -231,7 +239,7 @@ a.spin-btn.sub-btn{display:inline-block;text-decoration:none;line-height:2.7;pad
 
 <section class="view" id="v-members">
 <h2 class="view-title">👥 MEMBERS</h2>
-<p class="view-sub">Sign in for your daily spin</p>
+<p class="view-sub">One free spin every day — no sign-up needed</p>
 <div id="members-body"></div>
 </section>
 </div>
@@ -373,6 +381,8 @@ let db = null;
 let wheelRot = 0;
 let spinning = false;
 let countdownTimer = null;
+let subUnlocked = false;   /* honor-based subscribe attestation (players/{uid}.subscribed) */
+let subCheckDone = false;  /* attestation read finished */
 
 /* Premium black-and-gold casino wheel. 5 equal 72° segments; order and the
    animateWheelTo landing math are unchanged — this restyle is purely visual. */
@@ -457,77 +467,122 @@ function computeSpin(uid, date) {
   return {h:h, roll:roll, rarity:rarity, cardId:cardId, cardName:CARDS[cardId].name, value:value};
 }
 
+/* Silent anonymous auth (Shawn 2026-10-03: "Get rid of google login").
+   No login UI, no consent screens, no Google sign-in of any kind.
+   The anonymous uid keys spins/{uid}_{date}, players/{uid} and spin history —
+   everything per-browser. If anonymous sign-in fails (not enabled in the
+   Firebase console), the Members tab shows an error card and the wheel stays
+   disabled. There is NO fallback to Google login. */
+let authFailed = false;  /* anonymous sign-in failed */
+let handleSaved = '';    /* YouTube @handle from players/{uid}.displayName */
+
 function initFirebase() {
   if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') return false;
   try {
     firebase.initializeApp(FB_CONFIG);
     db = firebase.firestore();
     firebase.auth().onAuthStateChanged(function(u){
-      fbUser = u; renderAuthArea(); renderMembers();
+      fbUser = u; subUnlocked = false; subCheckDone = false;
+      if (u) { authFailed = false; readSubAttestation(u); } else renderMembers();
     });
+    if (!firebase.auth().currentUser) {
+      firebase.auth().signInAnonymously().catch(function(){ authFailed = true; renderMembers(); });
+    }
     return true;
-  } catch(e){ return false; }
+  } catch(e){ authFailed = true; return false; }
 }
 
-/* ============ Members: plain Google sign-in, no YouTube scope ============
-   Strategy call 2026-10-03 (Shawn): the game's main goal is gaining YouTube
-   subscribers, and the YouTube permission scope triggered Google's
-   "unverified app" warning right at the conversion moment. Sign-in is now
-   frictionless (openid/email/profile only) — no subscription API check.
-   The subscriber RULE stands: winners are manually verified in YouTube
-   Studio before prizes ship (the Trophy Hunt model). */
+/* ============ Members: silent anonymous auth, no login of any kind ============
+   Strategy call 2026-10-03 (Shawn): "Get rid of google login" — the page
+   works with zero login UI. firebase.auth().signInAnonymously() runs on
+   page init; the anonymous uid keys spins, the unlock attestation and
+   history. Firestore rules are untouched (they only require request.auth
+   != null and a uid match, which anonymous auth satisfies).
+   "SUBSCRIBE TO SPIN" gate (Shawn 2026-10-03): a visitor must tap
+   "I'm subscribed — unlock my spin" before the wheel appears. This writes
+   their OWN claim to players/{uid}.subscribed — an honor-based attestation,
+   never presented as a verified check. REAL verification happens at prize
+   time via the winner-verification link (built before season end). */
 const YT_SUBSCRIBE_URL = 'https://www.youtube.com/@CrownedCards?sub_confirmation=1';
 
-/* Display-name cache only — no subscription attestation, since we no longer
-   verify subscriptions client-side. The rules allow this field subset. */
-function writeDisplayName(u) {
-  if (!db || !u) return;
+/* Optional YouTube @handle — so winners can be reached. Saved to
+   players/{uid}.displayName. Shown under the wheel and under the lock
+   panel, in both Members states. */
+function handleHtml() {
+  return '<div class="handle-box"><label class="handle-label" for="yt-handle">Your YouTube @handle</label>' +
+    '<div class="handle-row"><input id="yt-handle" class="handle-input" type="text" maxlength="31" ' +
+    'placeholder="@yourhandle" value="' + esc(handleSaved) + '" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+    '<button class="handle-save" id="handle-save">Save</button></div>' +
+    '<p class="handle-help">So we can reach you if you win.</p>' +
+    '<p class="handle-err" id="handle-err" style="display:none"></p></div>';
+}
+
+/* @ + 2–29 chars (3–30 total), letters/numbers/._- only */
+function validHandle(h) {
+  return /^@[A-Za-z0-9._-]{2,29}$/.test(String(h || '').trim());
+}
+
+async function saveHandle() {
+  const inp = document.getElementById('yt-handle');
+  const err = document.getElementById('handle-err');
+  if (!inp) return;
+  const v = inp.value.trim();
+  const showErr = function(m, ok){ if (err) { err.textContent = m; err.style.display = ''; err.className = ok ? 'handle-ok' : 'handle-err'; } };
+  if (err) err.style.display = 'none';
+  if (!validHandle(v)) { showErr('Use your YouTube handle: starts with @, 3–30 characters, letters/numbers/._- only.'); return; }
+  if (!db || !fbUser) { showErr('Session not ready — try again in a moment.'); return; }
   try {
-    db.collection('players').doc(u.uid).set({ displayName: u.displayName || '' }, { merge: true });
-  } catch (e) { /* must not block the wheel */ }
+    await db.collection('players').doc(fbUser.uid).set({ displayName: v }, { merge: true });
+    handleSaved = v;
+    showErr('Saved ✓', true);
+  } catch(e) { showErr('Could not save — check your connection and try again.'); }
 }
 
-/* Frictionless auth flow: plain Google sign-in (openid/email/profile only).
-   No YouTube scope → no "Google hasn't verified this app" warning. */
-async function doAuthFlow() {
-  if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') return;
-  const provider = new firebase.auth.GoogleAuthProvider();
+function bindHandle() {
+  const b = document.getElementById('handle-save');
+  if (b) b.onclick = saveHandle;
+  const inp = document.getElementById('yt-handle');
+  if (inp) inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') saveHandle(); });
+}
+
+/* Read the user's own subscribe attestation + saved @handle. Missing doc or
+   subscribed!==true means locked. Never fail open: errors leave the user locked. */
+function readSubAttestation(u) {
+  if (!db || !u) { subUnlocked = false; subCheckDone = true; renderMembers(); return; }
+  renderMembers(); /* show the checking state immediately */
+  db.collection('players').doc(u.uid).get().then(function(snap){
+    const d = (snap && snap.exists) ? snap.data() : null;
+    subUnlocked = !!(d && d.subscribed === true);
+    if (d && typeof d.displayName === 'string' && d.displayName) handleSaved = d.displayName;
+    subCheckDone = true; renderMembers();
+  }).catch(function(){ subUnlocked = false; subCheckDone = true; renderMembers(); });
+}
+
+/* Honor-based unlock: the user taps "I've subscribed". This records THEIR
+   claim in players/{uid}.subscribed — it is NOT a verified check.
+   Real verification happens at prize time via the winner-verification link. */
+async function unlockSpin() {
+  if (!db || !fbUser) return;
+  const btn = document.getElementById('unlock-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Unlocking…'; }
+  /* include the @handle as displayName when a valid one is on screen */
+  const typed = ((document.getElementById('yt-handle') || {}).value || '').trim();
+  const dn = validHandle(typed) ? typed : '';
+  const write = { subscribed: true, subCheckedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  if (dn) write.displayName = dn;
   try {
-    const result = await firebase.auth().signInWithPopup(provider);
-    const u = result && result.user;
-    if (u) { fbUser = u; renderAuthArea(); writeDisplayName(u); renderMembers(); }
-  } catch (e) { /* popup closed or blocked — user stays signed out */ }
-}
-
-function signIn() { doAuthFlow(); }
-
-function signOut() {
-  if (typeof firebase === 'undefined') return;
-  if (confirm('Sign out of Crown Hunt?')) firebase.auth().signOut();
-}
-
-function renderAuthArea() {
-  const el = document.getElementById('auth-area');
-  if (!el) return;
-  if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') { el.style.display = 'none'; return; }
-  el.style.display = '';
-  if (fbUser) {
-    const name = esc((fbUser.displayName || 'Member').split(' ')[0]);
-    const photo = fbUser.photoURL ? '<img src="' + esc(fbUser.photoURL) + '" alt="" onerror="this.remove()">' : '';
-    el.innerHTML = '<button class="auth-chip" id="auth-chip" title="Sign out">' + photo + '<span>' + name + '</span></button>';
-    const chip = document.getElementById('auth-chip');
-    if (chip) chip.onclick = signOut;
-  } else {
-    el.innerHTML = '<button class="auth-btn" id="auth-signin">Sign in</button>';
-    const b = document.getElementById('auth-signin');
-    if (b) b.onclick = signIn;
+    await db.collection('players').doc(fbUser.uid).set(write, { merge: true });
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = "I'm subscribed — unlock my spin"; }
+    return; /* write failed — stay locked */
   }
+  if (dn) handleSaved = dn;
+  subUnlocked = true; subCheckDone = true; renderMembers();
 }
 
-function membersLockedHtml(msg, showBtn) {
+function membersLockedHtml(msg) {
   return '<div class="locked-panel"><div class="locked-ico">🔒</div>' +
-    '<h3 class="locked-title">MEMBERS ONLY</h3><p class="view-sub">' + msg + '</p>' +
-    (showBtn ? '<button class="spin-btn" id="m-signin-btn">Sign in with Google</button>' : '') + '</div>';
+    '<h3 class="locked-title">MEMBERS ONLY</h3><p class="view-sub">' + msg + '</p></div>';
 }
 
 function renderMembers() {
@@ -535,19 +590,43 @@ function renderMembers() {
   if (!body) return;
   stopCountdown();
   if (typeof FB_ENABLED === 'undefined' || !FB_ENABLED || typeof firebase === 'undefined') {
-    body.innerHTML = membersLockedHtml('The members section is launching soon. Check back after the next update.', false);
+    body.innerHTML = membersLockedHtml('The members section is launching soon. Check back after the next update.');
+    return;
+  }
+  if (authFailed) {
+    body.innerHTML = '<div class="locked-panel"><div class="locked-ico">⚠️</div>' +
+      '<h3 class="locked-title">SESSION UNAVAILABLE</h3>' +
+      '<p class="view-sub">Could not start your session — please check back soon.</p></div>' +
+      handleHtml();
+    bindHandle();
     return;
   }
   if (!fbUser) {
-    body.innerHTML = membersLockedHtml('Sign in with Google to unlock your daily spin.', true);
-    const b = document.getElementById('m-signin-btn');
-    if (b) b.onclick = signIn;
+    /* anonymous sign-in still in flight — not an error, just wait */
+    body.innerHTML = membersLockedHtml('Starting your session…');
     return;
   }
-  const name = esc((fbUser.displayName || 'Member').split(' ')[0]);
+  if (!subCheckDone) {
+    body.innerHTML = membersLockedHtml('Checking your membership…');
+    return;
+  }
+  if (!subUnlocked) {
+    body.innerHTML =
+      '<div class="locked-panel gold"><div class="locked-ico">🔔</div>' +
+      '<h3 class="locked-title">SUBSCRIBE TO SPIN</h3>' +
+      '<p class="view-sub">The daily wheel is for @CrownedCards subscribers. Already subscribed? Just unlock below.</p>' +
+      '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe to @CrownedCards</a><br>' +
+      '<button class="unlock-btn" id="unlock-btn">I\'m subscribed — unlock my spin</button>' +
+      '<p class="unlock-note">Season winners are verified before prizes ship.</p></div>' +
+      handleHtml();
+    const ub = document.getElementById('unlock-btn');
+    if (ub) ub.onclick = unlockSpin;
+    bindHandle();
+    return;
+  }
+  const handleNudge = handleSaved ? '' :
+    '<p class="handle-nudge">⚠️ Add your @handle below so we can find you if you win.</p>';
   body.innerHTML =
-    '<div class="member-head"><span class="member-hello">👋 ' + name + '</span>' +
-    '<button class="link-btn" id="m-signout">Sign out</button></div>' +
     '<div class="spin-panel"><h3 class="spin-title"><svg class="spin-crown" viewBox="0 0 36 27" width="30" height="22" aria-hidden="true"><path d="M3 21 L3 8 L10 13 L15 3 L18 12 L21 3 L26 13 L33 8 L33 21 Z" fill="#ffd34d"/><rect x="3" y="22" width="30" height="3.4" rx="1.7" fill="#ffd34d"/></svg>DAILY SPIN</h3>' +
     '<p class="view-sub">One free spin per day · wins a full-odds pack</p>' +
     '<div class="wheel-wrap"><canvas id="wheel-cv"></canvas><div class="wheel-pointer"></div></div>' +
@@ -555,13 +634,14 @@ function renderMembers() {
     '<div id="spin-countdown" class="spin-countdown"></div>' +
     '<div id="spin-result"></div>' +
     '<div class="sub-note"><p class="view-sub">🎡 Daily spins are for @CrownedCards subscribers — winners are verified before prizes ship.</p>' +
-    '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a></div></div>' +
+    '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a></div>' +
+    handleNudge + '</div>' +
+    handleHtml() +
     '<div class="spins-history"><h3 class="view-title" style="font-size:1.05rem">🕘 YOUR SPINS</h3>' +
     '<p class="view-sub" id="spins-total"></p><div id="spins-list"></div></div>';
-  const so = document.getElementById('m-signout');
-  if (so) so.onclick = signOut;
   const sb = document.getElementById('spin-btn');
   if (sb) sb.onclick = doSpin;
+  bindHandle();
   drawWheel();
   setWheelRot(0);
   checkTodaySpin();
@@ -748,7 +828,7 @@ async function checkTodaySpin() {
 }
 
 async function doSpin() {
-  if (spinning || !db || !fbUser) return;
+  if (spinning || !db || !fbUser || !subUnlocked) return;
   spinning = true;
   const btn = document.getElementById('spin-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'SPINNING…'; }
@@ -838,6 +918,6 @@ async function loadSpins() {
 document.getElementById("splash").classList.add("hide");
 renderStandings(); renderGallery(); bindStandingsSearch();
 initFirebase();
-renderAuthArea(); preloadWheelArt(); renderMembers();
+preloadWheelArt(); renderMembers();
 </script>
 </body></html>
