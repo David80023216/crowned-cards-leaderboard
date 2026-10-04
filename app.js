@@ -544,7 +544,7 @@ function initFirebase() {
     db = firebase.firestore();
     firebase.auth().onAuthStateChanged(function(u){
       fbUser = u; subUnlocked = false; subCheckDone = false;
-      if (u) { authFailed = false; readSubAttestation(u); startLiveTicker(); } else renderMembers();
+      if (u) { authFailed = false; readSubAttestation(u); startLiveTicker(); resolveReferrer(); } else renderMembers();
     });
     if (!firebase.auth().currentUser) {
       firebase.auth().signInAnonymously().catch(function(){ authFailed = true; renderMembers(); });
@@ -616,6 +616,229 @@ function bindHandle() {
   if (b) b.onclick = saveHandle;
   const inp = document.getElementById('yt-handle');
   if (inp) inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') saveHandle(); });
+}
+
+/* ============ Referrals: share link -> free Rare Pack for the referrer ====
+   Flow: a player shares their ?ref=<uid> link. A newcomer arriving on it who
+   rips their first daily pack credits the referrer (referrals/{newUid},
+   created once, only by the newcomer — self-referral is impossible by rule).
+   The REWARD GOES TO THE REFERRER ONLY: one Rare Pack (Rare or better,
+   guaranteed) per credited referral, ripped from the Members tab.
+   Anti-manipulation (enforced by Firestore rules + audit):
+   - one credit per newcomer (doc id = newcomer uid, create-fails-if-exists)
+   - only the newcomer can write their own referral doc (no forging)
+   - redemption requires the referral doc to credit YOU (rules read it)
+   - one redemption per referral (doc id = uid_ref_<referredUid>)
+   - reward rolls are deterministic (uid|rarepack|referredUid) and the cheat
+     audit recomputes every one; multi-uid farming rings are flagged there */
+var pendingRef = null;
+var referrerHandle = '';
+
+function initReferral(){
+  try {
+    const q = new URLSearchParams(location.search);
+    const r = (q.get('ref') || '').trim();
+    if (r && /^[A-Za-z0-9]{20,36}$/.test(r)) {
+      pendingRef = r;
+      try { localStorage.setItem('ch_ref', r); } catch(e){}
+    } else {
+      try { pendingRef = localStorage.getItem('ch_ref'); } catch(e){}
+      if (pendingRef && !/^[A-Za-z0-9]{20,36}$/.test(pendingRef)) pendingRef = null;
+    }
+  } catch(e){}
+}
+
+function shareLink(){
+  return 'https://david80023216.github.io/crowned-cards-leaderboard/?ref=' + (fbUser ? fbUser.uid : '');
+}
+
+/* After auth: drop self-referrals, resolve the referrer's @handle for the
+   "invited by" note. */
+async function resolveReferrer(){
+  if (!pendingRef || !db || !fbUser) return;
+  if (pendingRef === fbUser.uid) {
+    pendingRef = null;
+    try { localStorage.removeItem('ch_ref'); } catch(e){}
+    return;
+  }
+  try {
+    const s = await db.collection('players').doc(pendingRef).get();
+    const dn = s.exists ? (s.data().displayName || '') : '';
+    if (dn) {
+      referrerHandle = dn;
+      const el = document.getElementById('ref-note');
+      if (el) {
+        el.style.display = '';
+        el.innerHTML = '🔗 Invited by <b>' + esc(dn) + '</b> — rip your first pack and they score a bonus Rare Pack!';
+      }
+    }
+  } catch(e){}
+}
+
+/* Called after a NEW daily spin is written: credit the referrer, once. */
+function creditReferrer(){
+  if (!pendingRef || !db || !fbUser) return;
+  db.collection('referrals').doc(fbUser.uid).set({
+    referrer: pendingRef,
+    referred: fbUser.uid,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    try { localStorage.removeItem('ch_ref'); } catch(e){}
+    pendingRef = null;
+  }).catch(function(){ /* already credited / invalid — nothing to do */ });
+}
+
+function platformShareUrl(net){
+  const u = encodeURIComponent(shareLink());
+  const t = encodeURIComponent("I'm ripping free card packs on Crown Hunt — grab your daily pack, battle for REAL cards!");
+  if (net === 'facebook') return 'https://www.facebook.com/sharer/sharer.php?u=' + u;
+  if (net === 'x') return 'https://twitter.com/intent/tweet?text=' + t + '&url=' + u;
+  if (net === 'whatsapp') return 'https://wa.me/?text=' + t + '%20' + u;
+  if (net === 'telegram') return 'https://t.me/share/url?url=' + u + '&text=' + t;
+  return null;
+}
+
+/* YouTube offers no share endpoint (nobody can post TO YouTube from a
+   button), so the YouTube path copies the referral link and opens the
+   channel — the player pastes it as a comment on any video. */
+function copyLinkToClipboard(done){
+  const link = shareLink();
+  const fallback = function(){
+    const i = document.getElementById('share-link');
+    if (i) { i.select(); try { document.execCommand('copy'); if (done) done(); return; } catch(e){} }
+    if (done) done();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(function(){ if (done) done(); }, fallback);
+  } else fallback();
+}
+
+function refPanelHtml(){
+  return '<div class="ref-box"><h3 class="view-title" style="font-size:1.05rem">🎁 REFER-A-FRIEND</h3>' +
+    '<p class="view-sub">Share your link — when a friend rips their first pack, <b>you</b> get a free <b>Rare Pack</b> (Rare or better, guaranteed).</p>' +
+    '<div class="share-row"><input id="share-link" readonly value="' + esc(shareLink()) + '" onclick="this.select()">' +
+    '<button class=\"handle-save\" id="share-btn">Share</button>' +
+    '<button class=\"handle-save\" id="copy-link-btn">Copy</button></div>' +
+    '<div class="share-nets">' +
+    '<button class="net-btn" data-net="facebook">Facebook</button>' +
+    '<button class="net-btn" data-net="x">X</button>' +
+    '<button class="net-btn" data-net="whatsapp">WhatsApp</button>' +
+    '<button class="net-btn" data-net="telegram">Telegram</button>' +
+    '<button class="net-btn" data-net="youtube">YouTube</button></div>' +
+    '<p class="view-sub" id="yt-note" style="display:none">Link copied — paste it as a comment on any @CrownedCards video.</p>' +
+    '<p class="handle-err" id="share-msg" style="display:none"></p>' +
+    '<p class="view-sub" id="ref-stats"></p>' +
+    '<div id="rare-pack-zone"></div></div>';
+}
+
+function bindShare(){
+  const sb = document.getElementById('share-btn');
+  const cb = document.getElementById('copy-link-btn');
+  const msg = document.getElementById('share-msg');
+  if (!sb && !cb) return;
+  const say = function(t, ok){
+    if (!msg) return;
+    msg.textContent = t; msg.style.display = '';
+    msg.className = ok ? 'handle-ok' : 'handle-err';
+  };
+  const link = shareLink();
+  const text = "I'm ripping free card packs on Crown Hunt — grab your daily pack, battle for REAL cards! " + link;
+  const copyLink = function(){
+    const done = function(){ say('Link copied — send it to a friend!', true); };
+    const fallback = function(){
+      const i = document.getElementById('share-link');
+      if (i) { i.select(); try { document.execCommand('copy'); done(); return; } catch(e){} }
+      say('Copy this link: ' + link, false);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(done, fallback);
+    } else fallback();
+  };
+  if (sb) sb.onclick = function(){
+    if (navigator.share) {
+      navigator.share({title: 'Crown Hunt', text: text, url: link}).catch(function(){});
+    } else copyLink();
+  };
+  if (cb) cb.onclick = copyLink;
+  const nets = document.querySelectorAll('.net-btn');
+  nets.forEach(function(b){
+    b.onclick = function(){
+      const net = b.getAttribute('data-net');
+      if (net === 'youtube') {
+        copyLinkToClipboard(function(){
+          const yn = document.getElementById('yt-note');
+          if (yn) yn.style.display = '';
+          say('Link copied — paste it as a comment on any @CrownedCards video!', true);
+        });
+        window.open('https://www.youtube.com/@CrownedCards', '_blank', 'noopener');
+        return;
+      }
+      const url = platformShareUrl(net);
+      if (url) window.open(url, '_blank', 'noopener,width=640,height=560');
+    };
+  });
+}
+
+async function loadReferralPanel(){
+  const stats = document.getElementById('ref-stats');
+  const zone = document.getElementById('rare-pack-zone');
+  if (!stats || !db || !fbUser) return;
+  let mine = [];
+  try {
+    const snap = await db.collection('referrals').limit(50).get();
+    snap.forEach(function(d){
+      const v = d.data() || {};
+      if (v.referrer === fbUser.uid && v.referred) mine.push(v.referred);
+    });
+  } catch(e){ stats.textContent = ''; return; }
+  const avail = [];
+  for (const rid of mine) {
+    try {
+      const s = await db.collection('spins').doc(fbUser.uid + '_ref_' + rid).get();
+      if (!s.exists) avail.push(rid);
+    } catch(e){}
+  }
+  stats.innerHTML = 'Friends joined: <b>' + mine.length + '</b> · Rare packs ready: <b>' + avail.length + '</b>';
+  if (!zone) return;
+  if (avail.length && subUnlocked) {
+    zone.innerHTML = '<button class="spin-btn" id="rip-rare-btn">RIP RARE PACK (' + avail.length + ')</button><div id="rare-result"></div>';
+    document.getElementById('rip-rare-btn').onclick = function(){ doRarePackRip(avail[0]); };
+  } else if (avail.length) {
+    zone.innerHTML = '<p class="view-sub">Unlock your daily pack above to rip your Rare Packs.</p>';
+  } else {
+    zone.innerHTML = '';
+  }
+}
+
+async function doRarePackRip(referredUid){
+  const btn = document.getElementById('rip-rare-btn');
+  const res = document.getElementById('rare-result');
+  if (!db || !fbUser || !referredUid || !subUnlocked) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'RIPPING…'; }
+  let sd;
+  try { sd = await fetchServerDate(); }
+  catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'RIP RARE PACK'; }
+    if (res) res.innerHTML = '<p class="spin-error">Couldn\'t verify today\'s date — check your connection and try again.</p>';
+    return;
+  }
+  try {
+    const r = computeRarePack(fbUser.uid, referredUid);
+    const data = {uid: fbUser.uid, date: sd.date, rarity: r.rarity, cardId: r.cardId,
+                  cardName: r.cardName, value: r.value, kind: 'rare-pack',
+                  referredUid: referredUid,
+                  createdAt: firebase.firestore.FieldValue.serverTimestamp()};
+    const dn = currentHandle();
+    if (dn) data.displayName = dn;
+    await db.collection('spins').doc(fbUser.uid + '_ref_' + referredUid).set(data);
+    if (res) res.innerHTML = spinResultHtml(data, 'Referral Rare Pack');
+    loadReferralPanel();
+    loadSpins();
+    /* the live ticker picks the new pull up via onSnapshot automatically */
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'RIP RARE PACK'; }
+    if (res) res.innerHTML = '<p class="spin-error">Rip failed — check your connection and try again.</p>';
+  }
 }
 
 /* Read the user's own subscribe attestation + saved @handle. Missing doc or
@@ -695,6 +918,7 @@ function renderMembers() {
       '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe to @CrownedCards</a><br>' +
       '<button class="unlock-btn" id="unlock-btn">I\'m subscribed — unlock my spin</button>' +
       '<p class="unlock-note">Season winners are verified before prizes ship.</p></div>' +
+      '<p class="view-sub" id="ref-note" style="display:none"></p>' +
       handleHtml();
     const ub = document.getElementById('unlock-btn');
     if (ub) ub.onclick = unlockSpin;
@@ -716,7 +940,8 @@ function renderMembers() {
     handleNudge + '</div>' +
     handleHtml() +
     '<div class="spins-history"><h3 class="view-title" style="font-size:1.05rem">🃏 YOUR PACKS</h3>' +
-    '<p class="view-sub" id="spins-total"></p><div id="spins-list"></div></div>';
+    '<p class="view-sub" id="spins-total"></p><div id="spins-list"></div></div>' +
+    '<div id="ref-panel">' + refPanelHtml() + '</div>';
   const sb = document.getElementById('spin-btn');
   if (sb) sb.onclick = doSpin;
   const stg = document.getElementById('sound-toggle');
@@ -725,11 +950,13 @@ function renderMembers() {
   const st0 = document.getElementById('pack-stage');
   if (st0) st0.onclick = function(){ doSpin(); }; /* tapping the pack rips it too */
   bindHandle();
+  bindShare();
   checkTodaySpin();
   loadSpins();
+  loadReferralPanel();
 }
 
-function spinResultHtml(d) {
+function spinResultHtml(d, label) {
   const c = CARDS[d.cardId] || {name: d.cardName || d.cardId, sport: ''};
   return '<div class="spin-result r-' + esc(d.rarity) + '">' +
     '<div class="spin-result-title">🎉 YOU WON</div>' +
@@ -737,7 +964,23 @@ function spinResultHtml(d) {
     '<span class="rarity-badge">' + esc(d.rarity) + '</span></div>' +
     '<div class="card-name">' + esc(c.name) + '</div>' +
     '<div class="card-meta">' + esc(c.sport || '') + ' · <span class="card-value">' + money(+d.value || 0) + '</span></div>' +
-    '<div class="card-date">' + esc(d.date || '') + ' · Daily pack</div></div>';
+    '<div class="card-date">' + esc(d.date || '') + ' · ' + esc(label || 'Daily pack') + '</div></div>';
+}
+
+function computeRarePack(uid, referredUid) {
+  /* Referral reward roll: renormalized daily odds with Common removed —
+     Rare 62.5 / Epic 25 / Legendary 10 / Grail 2.5. Same card/value
+     machinery as the daily pack; the cheat audit recomputes it identically
+     from uid + '|rarepack|' + referredUid. */
+  const h = cyrb53(uid + '|rarepack|' + referredUid);
+  const roll = h % 1000;
+  const rarity = roll < 625 ? 'rare' : roll < 875 ? 'epic' : roll < 975 ? 'legendary' : 'grail';
+  const cardIdx = Math.floor(h / 256) % 3;
+  const cardId = rarity + '-' + (cardIdx + 1);
+  const frac = (Math.floor(h / 65536) % 100000) / 100000;
+  const lo = SPIN_RANGES[rarity][0], hi = SPIN_RANGES[rarity][1];
+  const value = Math.round((lo + frac * (hi - lo)) * 100) / 100;
+  return {h:h, roll:roll, rarity:rarity, cardId:cardId, cardName:CARDS[cardId].name, value:value};
 }
 
 async function checkTodaySpin() {
@@ -810,6 +1053,8 @@ async function doSpin() {
       if (dnw) data.displayName = dnw;
       try { await ref.set(data); }
       catch(e) { const s2 = await ref.get(); if (s2.exists) data = s2.data(); else throw e; }
+      /* a fresh pack from a ?ref= link credits the referrer (once, by rule) */
+      creditReferrer();
     }
     startRip(data, sd);
   } catch(e) {
@@ -867,6 +1112,7 @@ async function loadSpins() {
 
 document.getElementById("splash").classList.add("hide");
 renderStandings(); renderGallery(); bindStandingsSearch();
+initReferral();
 initFirebase();
 renderMembers();
 
