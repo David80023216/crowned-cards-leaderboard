@@ -628,50 +628,28 @@ function bindHandle() {
   if (inp) inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') saveHandle(); });
 }
 
-/* ============ Handle ownership claim (comment-code verification) ============
-   A player proves they own their @handle by commenting a one-time code on
-   any Crowned Cards video. The page checks the public YouTube API for the
-   code + author match, then stamps players/{uid}.handleVerified. This is
-   real proof of handle ownership (only the handle owner can comment as
-   that handle). Prize-time Studio verification remains the backstop. */
+/* ============ Handle verification (automatic, zero player effort) =========
+   No codes, no extra steps. The player types their @handle once. The page
+   then watches public comments on Crowned Cards videos: the first time it
+   sees the player's handle comment on any video, it stamps
+   players/{uid}.handleVerified and the gold badge appears on its own.
+   Runs at most once per Central day per device and never blocks play.
+   Prize-time Studio verification remains the backstop. */
 const YT_API_KEY = 'AIzaSyByNQpzkzoRhy7w-rBsbyOesKVBWEQPKC4'; /* public browser key: YouTube Data API v3 only, HTTP-referrer locked to our domain */
 const YT_CHANNEL_ID = 'UCMb6weNm3HQjiMuCMiVb_qQ';
+const KNOWN_VIDEO_IDS = []; /* unlisted videos the API cannot discover go here */
 let myVerified = false;   /* this browser's player has a verified handle */
-let claimCode = '';       /* pending claim code, empty when not claiming */
 
-function claimCodeGen() {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-  let s = 'CROWN-';
-  for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
+function centralDay() {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  } catch(e) { return new Date().toISOString().slice(0, 10); }
 }
 
-function claimBoxHtml() {
+function verifyStatusHtml() {
   if (!handleSaved) return '';
-  if (myVerified) return '<p class="claim-ok">✓ Handle verified — your badge is on the board.</p>';
-  if (claimCode) {
-    return '<div class="claim-box"><p><strong>Prove you own ' + esc(handleSaved) + ':</strong></p>' +
-      '<p>Comment this code on our <a href="https://www.youtube.com/@CrownedCards" target="_blank" rel="noopener">latest video</a>, then tap check.</p>' +
-      '<div class="claim-code">' + esc(claimCode) + '</div><br>' +
-      '<button class="claim-btn" id="claim-check">I commented it — check now</button> ' +
-      '<button class="claim-btn" id="claim-cancel" style="border-color:var(--line);color:var(--muted)">Cancel</button>' +
-      '<p class="claim-err" id="claim-err" style="display:none"></p></div>';
-  }
-  return '<button class="claim-btn" id="claim-start">Verify you own ' + esc(handleSaved) + '</button><div id="claim-slot"></div>';
-}
-
-function refreshClaimBox() {
-  const el = document.getElementById('claim-box');
-  if (el) { el.innerHTML = claimBoxHtml(); bindClaimBox(); }
-}
-
-function bindClaimBox() {
-  const s = document.getElementById('claim-start');
-  if (s) s.onclick = function(){ claimCode = claimCodeGen(); refreshClaimBox(); };
-  const c = document.getElementById('claim-cancel');
-  if (c) c.onclick = function(){ claimCode = ''; refreshClaimBox(); };
-  const k = document.getElementById('claim-check');
-  if (k) k.onclick = checkClaim;
+  if (myVerified) return '<p class="claim-ok">\u2713 Handle verified \u2014 your badge is on the board.</p>';
+  return '<p class="verify-hint">\U0001F4AC Comment on any Crowned Cards video and your \u2713 badge appears automatically.</p>';
 }
 
 async function ytApi(path) {
@@ -681,57 +659,67 @@ async function ytApi(path) {
   return r.json();
 }
 
-/* Scan recent videos for the claim code commented by the claimed handle.
-   Returns {videoId, commentId} on match, {mismatch:true} if the code was
-   found under a different name, null if not found. */
-async function findClaimComment(code, handle) {
+/* Up to 5 recent video IDs: public uploads playlist first, then any
+   known (unlisted) IDs the API cannot discover on its own. */
+async function recentVideoIds() {
+  const ids = [];
+  try {
+    const ch = await ytApi('channels?part=contentDetails&id=' + YT_CHANNEL_ID);
+    const pl = (((ch.items || [])[0] || {}).contentDetails || {}).relatedPlaylists || {};
+    if (pl.uploads) {
+      const vids = await ytApi('playlistItems?part=contentDetails&playlistId=' + pl.uploads + '&maxResults=5');
+      for (const it of (vids.items || [])) {
+        const vid = ((it.contentDetails) || {}).videoId;
+        if (vid && ids.indexOf(vid) === -1) ids.push(vid);
+      }
+    }
+  } catch(e) { /* no discoverable public videos — fall through to known IDs */ }
+  for (const vid of KNOWN_VIDEO_IDS) if (ids.indexOf(vid) === -1 && ids.length < 5) ids.push(vid);
+  return ids;
+}
+
+/* Look for the player's handle among recent top-level comments.
+   Returns {videoId, commentId} on match, null otherwise. */
+async function findHandleComment(handle) {
   const want = normH(handle);
-  const ch = await ytApi('channels?part=contentDetails&id=' + YT_CHANNEL_ID);
-  const pl = (((ch.items || [])[0] || {}).contentDetails || {}).relatedPlaylists || {};
-  if (!pl.uploads) return null;
-  const vids = await ytApi('playlistItems?part=contentDetails&playlistId=' + pl.uploads + '&maxResults=5');
-  let mismatch = false;
-  for (const it of ((vids.items) || [])) {
-    const vid = ((it.contentDetails) || {}).videoId;
-    if (!vid) continue;
+  const vids = await recentVideoIds();
+  for (const vid of vids) {
     let ct;
     try { ct = await ytApi('commentThreads?part=snippet&videoId=' + vid + '&order=time&maxResults=100&textFormat=plainText'); }
-    catch(e){ continue; } /* comments disabled etc. — try next video */
+    catch(e){ continue; } /* comments disabled etc. — try the next video */
     for (const t of (ct.items || [])) {
       const top = ((t.snippet) || {}).topLevelComment || {};
       const sn = top.snippet || {};
-      if ((sn.textDisplay || '').toUpperCase().indexOf(code) === -1) continue;
       if (normH(sn.authorDisplayName) === want) return { videoId: vid, commentId: top.id };
-      mismatch = true;
     }
   }
-  return mismatch ? { mismatch: true } : null;
+  return null;
 }
 
-async function checkClaim() {
-  const err = document.getElementById('claim-err');
-  const btn = document.getElementById('claim-check');
-  const showErr = function(m){ if (err) { err.textContent = m; err.style.display = ''; } };
-  if (!db || !fbUser || !claimCode || !handleSaved) return;
-  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
-  if (err) err.style.display = 'none';
-  let found;
-  try { found = await findClaimComment(claimCode, handleSaved); }
-  catch(e) { showErr('Could not reach YouTube — check your connection and try again.'); if (btn) { btn.disabled = false; btn.textContent = 'I commented it — check now'; } return; }
-  if (!found) { showErr('Code not found yet — make sure the comment is posted (not a reply), then try again.'); if (btn) { btn.disabled = false; btn.textContent = 'I commented it — check now'; } return; }
-  if (found.mismatch) { showErr('Found the code, but under a different name — comment from the ' + handleSaved + ' account.'); if (btn) { btn.disabled = false; btn.textContent = 'I commented it — check now'; } return; }
+/* Passive check: once per Central day, if the player has a handle but no
+   badge yet, scan recent comments for it. Silent on failure. */
+async function maybeAutoVerify() {
+  if (!db || !fbUser || !handleSaved || myVerified) return;
+  const today = centralDay();
+  try { if (localStorage.getItem('ch_verify_check') === today) return; }
+  catch(e){}
+  let found = null;
+  try { found = await findHandleComment(handleSaved); }
+  catch(e) { return; } /* API hiccup — try again tomorrow */
+  try { localStorage.setItem('ch_verify_check', today); } catch(e){}
+  if (!found) return;
   try {
     await db.collection('players').doc(fbUser.uid).set({
       handleVerified: true,
-      handleVerifyProof: { code: claimCode, videoId: found.videoId, commentId: found.commentId, checkedAt: firebase.firestore.FieldValue.serverTimestamp() }
+      handleVerifyProof: { auto: true, videoId: found.videoId, commentId: found.commentId, checkedAt: firebase.firestore.FieldValue.serverTimestamp() }
     }, { merge: true });
-  } catch(e) { showErr('Could not save verification — try again.'); if (btn) { btn.disabled = false; btn.textContent = 'I commented it — check now'; } return; }
+  } catch(e) { return; }
   myVerified = true;
-  claimCode = '';
-  tickerVerified[fbUser.uid] = true;   /* ticker picks up the badge now */
-  paintLiveTicker();
-  renderStandings();                    /* YOU row gets the badge now */
-  refreshClaimBox();
+  if (typeof tickerVerified !== 'undefined') tickerVerified[fbUser.uid] = true;
+  if (typeof paintLiveTicker === 'function') paintLiveTicker();
+  if (typeof renderStandings === 'function') renderStandings();
+  const box = document.getElementById('verify-box');
+  if (box) box.innerHTML = verifyStatusHtml();
 }
 
 /* ============ Referrals: share link -> free Rare Pack for the referrer ====
@@ -1074,6 +1062,7 @@ function renderMembers() {
     if (ub) ub.onclick = unlockSpin;
     bindHandle();
     setPackState('locked');
+    maybeAutoVerify();
     return;
   }
   const handleNudge = handleSaved ? '' :
@@ -1092,7 +1081,7 @@ function renderMembers() {
     '<a class="spin-btn sub-btn" href="' + YT_SUBSCRIBE_URL + '" target="_blank" rel="noopener">Subscribe on YouTube</a></div>' +
     handleNudge + '</div>' +
     handleHtml() +
-    '<div id="claim-box">' + claimBoxHtml() + '</div>' +
+    '<div id="verify-box">' + verifyStatusHtml() + '</div>' +
     '<div class="spins-history"><h3 class="view-title" style="font-size:1.05rem">🃏 YOUR PACKS</h3>' +
     '<p class="view-sub" id="spins-total"></p><div id="spins-list"></div></div>' +
     '<div id="ref-panel">' + refPanelHtml() + '</div>';
@@ -1104,11 +1093,11 @@ function renderMembers() {
   const st0 = document.getElementById('pack-stage');
   if (st0) st0.onclick = function(){ doSpin(); }; /* tapping the pack rips it too */
   bindHandle();
-  bindClaimBox();
   bindShare();
   checkTodaySpin();
   loadSpins();
   loadReferralPanel();
+  maybeAutoVerify();
 }
 
 function spinResultHtml(d, label) {
