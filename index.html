@@ -32,17 +32,22 @@ gap:2px;padding:.45rem 0;font-size:.62rem;font-weight:600;cursor:pointer;min-hei
 .tabbar button.active{color:var(--gold);text-shadow:0 0 12px rgba(255,211,77,.4)}
 .tab-ico{font-size:1.4rem;line-height:1.2}
 table{width:100%;border-collapse:collapse}
-.standings-table tbody tr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;
-grid-template-areas:"rank player value" "grails streak streak" "prize prize prize";column-gap:.55rem;align-items:center;
+.standings-table tbody tr{display:grid;grid-template-columns:2.5rem minmax(0,1fr) auto;
+grid-template-areas:"rank player value" "pills pills pills" "prize prize prize";column-gap:.55rem;align-items:center;
 background:rgba(255,255,255,.028);border:1px solid var(--line);border-radius:.8rem;
 padding:.7rem .85rem;margin:0 0 .55rem;cursor:pointer}
+/* Rank column is a FIXED 2.5rem on every row: the pills row spans full width in
+   its own "pills" area, so pill width can never stretch/shift the rank column
+   (that was the centered-vs-left handle bug). */
 .standings-table tbody tr.leader{border-color:var(--gold-dim);box-shadow:0 0 18px rgba(255,211,77,.18)}
 .standings-table td{display:block;border:0;padding:0;min-width:0}
-td.rank{grid-area:rank;font-size:1.2rem;font-weight:700;color:var(--gold)}
-td.player{grid-area:player;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
-td.value{grid-area:value;font-weight:800;color:var(--gold);text-align:right;white-space:nowrap}
-td.grails-cell{grid-area:grails;font-size:.85rem;color:#f0eaff}
-td.streak-cell{grid-area:streak;justify-self:end;margin-top:.3rem;font-size:.85rem}
+td.rank{grid-area:rank;font-size:1.2rem;font-weight:700;color:var(--gold);text-align:center;min-width:0}
+td.player{grid-area:player;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;min-width:0}
+td.value{grid-area:value;font-weight:800;color:var(--gold);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;min-width:0}
+td.pills{grid-area:pills;display:flex;align-items:center;gap:.5rem;margin-top:.35rem;min-width:0;font-size:.85rem;color:#f0eaff}
+td.pills .streak-wrap{margin-left:auto;display:inline-flex;min-width:0}
+tr.no-results{grid-template-columns:1fr;grid-template-areas:"nores";cursor:default}
+tr.no-results td{grid-area:nores;min-width:0}
 .streak-1{color:var(--muted);font-size:.85rem}
 /* Rarity count pills: jewel-tone CSS badges, no emoji — black-and-gold premium theme */
 .rcount{display:inline-block;font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
@@ -299,8 +304,7 @@ function renderStandings() {
       <td class="rank">${p.rank===1?'👑':p.rank}</td>
       <td class="player">${p.handle}</td>
       <td class="value">${money(p.value)}</td>
-      <td class="grails-cell">${p.grails?('<span class="rcount grail">'+p.grails+' Grail</span>'):(p.legendaries?('<span class="rcount legendary">'+p.legendaries+' Legendary</span>'):'')}</td>
-      <td class="streak-cell">${p.streak>1?('<span class="streak-pill">'+p.streak+'-day streak</span>'):('<span class="streak-1">day '+p.streak+'</span>')}</td>${prizeChip(p)}
+      <td class="pills">${p.grails?('<span class="rcount grail">'+p.grails+' Grail</span>'):(p.legendaries?('<span class="rcount legendary">'+p.legendaries+' Legendary</span>'):'')}<span class="streak-wrap">${p.streak>1?('<span class="streak-pill">'+p.streak+'-day streak</span>'):('<span class="streak-1">day '+p.streak+'</span>')}</span></td>${prizeChip(p)}
     </tr>`).join("") :
     `<tr class="no-results"><td colspan="6" style="text-align:center;color:var(--muted);padding:1.4rem;cursor:default">No players match &ldquo;${esc(standingsQuery.trim())}&rdquo;.</td></tr>`;
   el.querySelectorAll("tr").forEach(row => row.addEventListener("click", function(){ if (!row.classList.contains("no-results")) toggleBinder(row); }));
