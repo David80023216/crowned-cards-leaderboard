@@ -605,7 +605,7 @@ function renderPackCta(){
   el.style.display = '';
   el.className = 'pack-cta' + (packUiState === 'ripped' ? ' ripped' : packUiState === 'locked' ? ' locked' : '');
   if (packUiState === 'ripped')
-    el.innerHTML = '✅ TODAY’S PACK RIPPED<span class="pack-cta-sub">Next pack unlocks at midnight Central</span>';
+    el.innerHTML = '✅ TODAY’S PACK RIPPED<span class="pack-cta-sub">Tap to view your pull · next pack at midnight Central</span>';
   else if (packUiState === 'locked')
     el.innerHTML = '\u{1F512} UNLOCK TODAY’S PACK<span class="pack-cta-sub">Subscribe to @CrownedCards to rip</span>';
   else
